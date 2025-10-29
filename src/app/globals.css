@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+/* Hide scrollbar only for html and body */
+html,
+body {
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    overflow-x: hidden;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari, Opera */
+}
+
+/* Smooth scroll with momentum */
+html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 80px;
+    /* Adjust for fixed header */
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    html {
+        scroll-behavior: smooth;
+    }
+}
+
+body {
+    background: var(--background);
+    color: var(--foreground);
+    overscroll-behavior-y: none;
+    /* Prevent bounce effect on mobile */
+}
+
+@keyframes scroll {
+    0% {
+        transform: translateX(0);
+    }
+
+    100% {
+        transform: translateX(-50%);
+    }
+}
+
+.animate-scroll {
+    animation: scroll 30s linear infinite;
+}
