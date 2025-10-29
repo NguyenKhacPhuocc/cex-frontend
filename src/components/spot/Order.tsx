@@ -262,7 +262,7 @@ export default function Order() {
                     </div>
 
                     {/* Buy Button */}
-                    <button className="w-full  h-[36px] bg-green-500 hover:bg-green-600 text-white font-medium rounded transition-colors">
+                    <button className="w-full  h-[36px] bg-green-500 hover:bg-green-600 text-white font-medium rounded transition-colors text-[14px]">
                         Đăng nhập
                     </button>
                 </div>
@@ -369,7 +369,7 @@ export default function Order() {
                     </div>
 
                     {/* Sell Button */}
-                    <button className="w-full h-[36px] bg-red-500 hover:bg-red-600 text-white font-medium rounded transition-colors">
+                    <button className="w-full h-[36px] bg-red-500 hover:bg-red-600 text-white font-medium rounded transition-colors text-[14px]">
                         Đăng nhập
                     </button>
                 </div>
