@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 export default function Hero() {
     return (
-        <div className="bg-white min-h-screen flex items-center">
+        <div className="bg-white dark:bg-transparent min-h-screen flex items-center">
           <div className="max-w-7xl mx-auto py-24 px-4 sm:py-32 sm:px-6 lg:px-8">
             <div className="text-center">
               <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl lg:text-6xl">

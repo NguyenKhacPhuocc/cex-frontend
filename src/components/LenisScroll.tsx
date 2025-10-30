@@ -9,6 +9,9 @@ interface LenisScrollProps {
 
 export default function LenisScroll({ children }: LenisScrollProps) {
     useEffect(() => {
+        // Scroll to top immediately on mount
+        window.scrollTo(0, 0);
+
         // Initialize Lenis
         const lenis = new Lenis({
             duration: 1.2,
@@ -20,6 +23,9 @@ export default function LenisScroll({ children }: LenisScrollProps) {
             touchMultiplier: 2,
             infinite: false,
         });
+
+        // Scroll to top using Lenis after initialization
+        lenis.scrollTo(0, { immediate: true });
 
         // Animation frame loop
         function raf(time: number) {

@@ -43,7 +43,7 @@ export default function RegisterPage() {
             });
 
             toast.success('Đăng ký thành công! Đang chuyển đến trang đăng nhập...');
-            console.log('✅ Register successful:', response.data);
+            // console.log('✅ Register successful:', response.data);
 
             // Redirect to login page after 1.5s
             setTimeout(() => {

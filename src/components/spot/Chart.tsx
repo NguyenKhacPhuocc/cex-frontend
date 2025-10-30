@@ -2,6 +2,7 @@
 "use client"
 import { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType, IChartApi, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
+import { useSpot } from '@/contexts/SpotContext';
 
 interface CandleData {
     time: string;
@@ -19,7 +20,6 @@ interface VolumeData {
 }
 
 interface ChartProps {
-    symbol?: string;
     chartData?: CandleData[];
 }
 
@@ -37,15 +37,19 @@ const DEFAULT_MOCK_DATA: CandleData[] = [
     { time: '2018-12-31', open: 109.87, high: 114.69, low: 85.66, close: 111.26, volume: 140000 },
 ];
 
-export default function Chart({ symbol = "BTC_USDT", chartData }: ChartProps) {
+export default function Chart({ chartData }: ChartProps) {
+    const { symbol, assetToken, baseToken } = useSpot();
+
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const tradingViewContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
     const candleSeriesRef = useRef<any>(null);
 
     const [activeMainTab, setActiveMainTab] = useState("chart");
-    const [activeChartTab, setActiveChartTab] = useState("original");
+    const [activeChartTab, setActiveChartTab] = useState("tradingview");
     const [timeframe, setTimeframe] = useState("1h");
+
+    // console.log('📈 Chart using symbol from Context:', { symbol, assetToken, baseToken });
 
     const mainTabs = [
         { id: "chart", label: "Đồ thị" },
@@ -180,13 +184,13 @@ export default function Chart({ symbol = "BTC_USDT", chartData }: ChartProps) {
             };
         } catch (error) {
             console.error('Error initializing chart:', error);
-            console.log('Please run: npm install lightweight-charts');
+            // console.log('Please run: npm install lightweight-charts');
         }
     }, [activeChartTab, chartData]);
 
     const handleTimeframeChange = (tf: string) => {
         setTimeframe(tf);
-        console.log('Timeframe changed to:', tf);
+        // console.log('Timeframe changed to:', tf);
         // TODO: Fetch new data based on timeframe
     };
 

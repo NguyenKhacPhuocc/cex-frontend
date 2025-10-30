@@ -1,106 +1,56 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useSpot } from "@/contexts/SpotContext";
+import { useAllBalances, Balance } from "@/hooks/useBalances";
+import { usePlaceOrder } from "@/hooks/useOrders";
+import { useWebSocketContext } from "@/providers/WebSocketProvider";
+import { HiDotsVertical } from "react-icons/hi";
+import { toast } from "react-hot-toast";
 
 type MainTab = "spot" | "crossMargin" | "isolated" | "grid";
 type OrderTab = "limit" | "market" | "stopLimit";
 
 export default function Order() {
+    const { isLogin } = useAuth();
+    const { symbol, assetToken, baseToken } = useSpot();
+
     const [mainTab, setMainTab] = useState<MainTab>("spot");
     const [orderTab, setOrderTab] = useState<OrderTab>("limit");
-    const [buyPrice, setBuyPrice] = useState<string>("114.458,41");
-    const [buyAmount, setBuyAmount] = useState<string>("0,00001");
-    const [sellPrice, setSellPrice] = useState<string>("114.458,41");
-    const [sellAmount, setSellAmount] = useState<string>("0,00000");
+    const [buyPrice, setBuyPrice] = useState<string>("100000");
+    const [buyAmount, setBuyAmount] = useState<string>("0");
+    const [sellPrice, setSellPrice] = useState<string>("100000");
+    const [sellAmount, setSellAmount] = useState<string>("0");
     const [buyTpSl, setBuyTpSl] = useState(false);
     const [sellTpSl, setSellTpSl] = useState(false);
+    const [buySlider, setBuySlider] = useState<number>(0);
+    const [sellSlider, setSellSlider] = useState<number>(0);
 
-    // Refs để quản lý cursor position
-    const buyPriceRef = useRef<HTMLInputElement>(null);
-    const buyAmountRef = useRef<HTMLInputElement>(null);
-    const sellPriceRef = useRef<HTMLInputElement>(null);
-    const sellAmountRef = useRef<HTMLInputElement>(null);
-    const cursorPositionRef = useRef<number>(0);
+    // console.log('📊 Trading Pair from Context:', { symbol, assetToken, baseToken });
 
-    // Parse từ format châu Âu về số
-    const parseNumber = (str: string): number => {
-        if (!str) return 0;
-        const cleaned = str.replace(/\./g, "").replace(",", ".");
-        const num = parseFloat(cleaned);
-        return isNaN(num) ? 0 : num;
-    };
+    // 🔥 WebSocket connection status (shared across all components)
+    const { isConnected } = useWebSocketContext();
+    // console.log('🔌 WebSocket status:', isConnected ? 'Connected ✅' : 'Disconnected ❌');
 
-    // Format input với việc quản lý cursor
-    const formatInput = (
-        value: string,
-        decimals: number,
-        inputRef: React.RefObject<HTMLInputElement | null>
-    ): string => {
-        // Lưu vị trí cursor hiện tại
-        const cursorPos = inputRef.current?.selectionStart || 0;
-        const oldValue = inputRef.current?.value || "";
+    // Fetch balances using React Query
+    const balances = useAllBalances(isLogin);
+    const spotBalances = balances.spot.data || [];
+    const futuresBalances = balances.futures.data || [];
+    const fundingBalances = balances.funding.data || [];
+    const isLoadingBalances = balances.isLoading;
+    const isFetchingBalances = balances.spot.isFetching || balances.futures.isFetching || balances.funding.isFetching;
 
-        // Chỉ cho phép số, dấu chấm và dấu phẩy
-        const cleaned = value.replace(/[^\d.,]/g, "");
-        if (!cleaned) return "";
-
-        // Parse số
-        const num = parseNumber(cleaned);
-        if (isNaN(num)) return "";
-
-        // Format lại
-        const [integerPart, decimalPart = ""] = num.toFixed(decimals).split(".");
-        const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-        const formatted = `${formattedInteger},${decimalPart}`;
-
-        // Tính toán vị trí cursor mới
-        const oldLength = oldValue.length;
-        const newLength = formatted.length;
-        const diff = newLength - oldLength;
-        cursorPositionRef.current = Math.max(0, cursorPos + diff);
-
-        return formatted;
-    };
-
-    // Restore cursor position sau khi format
-    useEffect(() => {
-        if (buyPriceRef.current && document.activeElement === buyPriceRef.current) {
-            buyPriceRef.current.setSelectionRange(cursorPositionRef.current, cursorPositionRef.current);
-        }
-        if (buyAmountRef.current && document.activeElement === buyAmountRef.current) {
-            buyAmountRef.current.setSelectionRange(cursorPositionRef.current, cursorPositionRef.current);
-        }
-        if (sellPriceRef.current && document.activeElement === sellPriceRef.current) {
-            sellPriceRef.current.setSelectionRange(cursorPositionRef.current, cursorPositionRef.current);
-        }
-        if (sellAmountRef.current && document.activeElement === sellAmountRef.current) {
-            sellAmountRef.current.setSelectionRange(cursorPositionRef.current, cursorPositionRef.current);
-        }
+    // Debug: Log balances when they change
+    console.log('💰 Current Balances in Order.tsx:', {
+        spot: spotBalances,
+        BTC: spotBalances.find(b => b.asset === 'BTC'),
+        USDT: spotBalances.find(b => b.asset === 'USDT'),
+        isLoading: isLoadingBalances,
+        isFetching: isFetchingBalances
     });
 
-    // Xử lý thay đổi input - format ngay
-    const handleInputChange = (
-        value: string,
-        setter: (val: string) => void,
-        decimals: number,
-        inputRef: React.RefObject<HTMLInputElement | null>
-    ) => {
-        const formatted = formatInput(value, decimals, inputRef);
-        setter(formatted);
-    };
-
-    // Tăng/giảm giá trị
-    const adjustValue = (
-        currentValue: string,
-        step: number,
-        setter: (val: string) => void,
-        decimals: number
-    ) => {
-        const num = parseNumber(currentValue);
-        const newValue = Math.max(0, num + step);
-        const [integerPart, decimalPart = ""] = newValue.toFixed(decimals).split(".");
-        const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-        setter(`${formattedInteger},${decimalPart}`);
-    };
+    // Place order mutation
+    const placeOrderMutation = usePlaceOrder();
 
     const mainTabs = [
         { id: "spot" as MainTab, label: "Spot" },
@@ -112,8 +62,211 @@ export default function Order() {
     const orderTabs = [
         { id: "limit" as OrderTab, label: "Giới hạn" },
         { id: "market" as OrderTab, label: "Thị trường" },
-        { id: "stopLimit" as OrderTab, label: "Stop Limit" },
+        // { id: "stopLimit" as OrderTab, label: "Stop Limit" },
     ];
+
+    // Helper function to get balance by asset with proper decimal formatting
+    const getBalance = (asset: string, decimals?: number): string => {
+        if (!isLogin || isLoadingBalances) return '--';
+
+        let balances: Balance[] = [];
+
+        // Chọn balances theo mainTab
+        if (mainTab === 'spot') balances = spotBalances;
+        else if (mainTab === 'crossMargin' || mainTab === 'isolated') balances = futuresBalances;
+        else if (mainTab === 'grid') balances = fundingBalances;
+
+        const balance = balances.find(b => b.asset === asset);
+        if (!balance) {
+            // Auto-detect decimals based on asset type
+            const defaultDecimals = decimals ?? (asset === assetToken ? 5 : 2);
+            return '0.' + '0'.repeat(defaultDecimals);
+        }
+
+        // Parse and format with specified decimals
+        const value = parseFloat(balance.available);
+        const formatDecimals = decimals ?? (asset === assetToken ? 5 : 2);
+
+        return value.toFixed(formatDecimals);
+    };
+
+    // Get raw balance as number
+    const getRawBalance = (asset: string): number => {
+        if (!isLogin || isLoadingBalances) return 0;
+
+        let balances: Balance[] = [];
+        if (mainTab === 'spot') balances = spotBalances;
+        else if (mainTab === 'crossMargin' || mainTab === 'isolated') balances = futuresBalances;
+        else if (mainTab === 'grid') balances = fundingBalances;
+
+        const balance = balances.find(b => b.asset === asset);
+        return balance ? parseFloat(balance.available) : 0;
+    };
+
+    // Tính toán Tổng (Total) = Giá × Số lượng
+    const buyTotal = buyPrice && buyAmount ? (parseFloat(buyPrice) * parseFloat(buyAmount)).toFixed(5) : '0.00000';
+    const sellTotal = sellPrice && sellAmount ? (parseFloat(sellPrice) * parseFloat(sellAmount)).toFixed(5) : '0.00000';
+
+    // Tính toán Mua tối đa = Số dư baseToken / Giá
+    const getMaxBuyAmount = (): string => {
+        if (!isLogin || !buyPrice) return '--';
+        const price = parseFloat(buyPrice);
+        if (price <= 0) return '--';
+        const balance = getRawBalance(baseToken);
+        const maxAmount = balance / price;
+        return maxAmount.toFixed(5);
+    };
+
+    // Tính toán Bán tối đa (Total USDT) = Số dư assetToken × Giá
+    const getMaxSellTotal = (): string => {
+        if (!isLogin || !sellPrice) return '--';
+        const price = parseFloat(sellPrice);
+        if (price <= 0) return '--';
+        const balance = getRawBalance(assetToken);
+        const maxTotal = balance * price;
+        return maxTotal.toFixed(2);
+    };
+
+    // Handler cho Buy Slider
+    const handleBuySlider = (value: number) => {
+        setBuySlider(value);
+
+        if (!isLogin || !buyPrice) return;
+
+        const price = parseFloat(buyPrice);
+        if (price <= 0) return;
+
+        const balance = getRawBalance(baseToken);
+        const usdtToUse = (balance * value) / 100;
+        const amount = usdtToUse / price;
+
+        setBuyAmount(amount.toString());
+    };
+
+    // Handler cho Sell Slider
+    const handleSellSlider = (value: number) => {
+        setSellSlider(value);
+
+        if (!isLogin) return;
+
+        const balance = getRawBalance(assetToken);
+        const amount = (balance * value) / 100;
+
+        setSellAmount(amount.toString());
+    };
+
+    // Handler cho Buy Order
+    const handleBuyOrder = async () => {
+        if (!isLogin) {
+            window.location.href = '/login';
+            return;
+        }
+
+        // Validation
+        if (!buyAmount || parseFloat(buyAmount) <= 0) {
+            toast.error('Vui lòng nhập số lượng hợp lệ');
+            return;
+        }
+
+        if (orderTab === 'limit' && (!buyPrice || parseFloat(buyPrice) <= 0)) {
+            toast.error('Vui lòng nhập giá hợp lệ');
+            return;
+        }
+
+        // Check balance
+        const balance = getRawBalance(baseToken);
+        const total = orderTab === 'limit'
+            ? parseFloat(buyPrice) * parseFloat(buyAmount)
+            : parseFloat(buyAmount); // For market orders, amount is in USDT
+
+        if (balance < total) {
+            toast.error(`Số dư ${baseToken} không đủ`);
+            return;
+        }
+
+        try {
+            // console.log('🟢 Placing BUY order...', {
+            //     marketSymbol: symbol,
+            //     side: 'buy',
+            //     type: orderTab,
+            //     price: orderTab === 'limit' ? parseFloat(buyPrice) : undefined,
+            //     amount: parseFloat(buyAmount),
+            // });
+
+            await placeOrderMutation.mutateAsync({
+                marketSymbol: symbol,
+                side: 'buy',
+                type: orderTab as 'limit' | 'market',
+                price: orderTab === 'limit' ? parseFloat(buyPrice) : undefined,
+                amount: parseFloat(buyAmount),
+            });
+
+            // console.log('✅ BUY order placed successfully! Balances should refetch now...');
+            toast.success(`✅ Đã đặt lệnh mua ${assetToken} thành công!`);
+            // Reset form
+            setBuyAmount('0');
+            setBuySlider(0);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra';
+            toast.error(`❌ Đặt lệnh thất bại: ${errorMessage}`);
+        }
+    };
+
+    // Handler cho Sell Order
+    const handleSellOrder = async () => {
+        if (!isLogin) {
+            window.location.href = '/login';
+            return;
+        }
+
+        // Validation
+        if (!sellAmount || parseFloat(sellAmount) <= 0) {
+            toast.error('Vui lòng nhập số lượng hợp lệ');
+            return;
+        }
+
+        if (orderTab === 'limit' && (!sellPrice || parseFloat(sellPrice) <= 0)) {
+            toast.error('Vui lòng nhập giá hợp lệ');
+            return;
+        }
+
+        // Check balance
+        const balance = getRawBalance(assetToken);
+        const amount = parseFloat(sellAmount);
+
+        if (balance < amount) {
+            toast.error(`Số dư ${assetToken} không đủ`);
+            return;
+        }
+
+        try {
+            // console.log('🔴 Placing SELL order...', {
+            //     marketSymbol: symbol,
+            //     side: 'sell',
+            //     type: orderTab,
+            //     price: orderTab === 'limit' ? parseFloat(sellPrice) : undefined,
+            //     amount: parseFloat(sellAmount),
+            // });
+
+            await placeOrderMutation.mutateAsync({
+                marketSymbol: symbol,
+                side: 'sell',
+                type: orderTab as 'limit' | 'market',
+                price: orderTab === 'limit' ? parseFloat(sellPrice) : undefined,
+                amount: parseFloat(sellAmount),
+            });
+
+            // console.log('✅ SELL order placed successfully! Balances should refetch now...');
+            toast.success(`✅ Đã đặt lệnh bán ${assetToken} thành công!`);
+
+            // Reset form
+            setSellAmount('0');
+            setSellSlider(0);
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra';
+            toast.error(`❌ Đặt lệnh thất bại: ${errorMessage}`);
+        }
+    };
 
     return (
         <div className="bg-white min-h-[350px] rounded-[8px] flex flex-col">
@@ -151,15 +304,13 @@ export default function Order() {
                         </button>
                     ))}
                     <button className="ml-auto text-gray-400 hover:text-gray-600">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                        </svg>
+                        <HiDotsVertical className="w-4 h-4" />
                     </button>
                 </div>
             </div>
 
             {/* Buy/Sell Grid */}
-            <div className="flex-1 grid grid-cols-2 gap-[8px] p-[16px]">
+            <div className="flex-1 grid grid-cols-2 gap-[16px] p-[16px]">
                 {/* Buy Side */}
                 <div className="flex flex-col gap-[12px]">
                     {/* Price Input */}
@@ -169,25 +320,16 @@ export default function Order() {
                                 Giá
                             </span>
                             <input
-                                ref={buyPriceRef}
-                                type="text"
-                                value={buyPrice}
-                                onChange={(e) => handleInputChange(e.target.value, setBuyPrice, 2, buyPriceRef)}
-                                className="w-full px-[12px] py-[8px] pr-[80px] text-[14px] border border-gray-300 rounded focus:outline-none focus:border-gray-400 text-right"
+                                type={orderTab === 'market' ? 'text' : 'number'}
+                                step="0.01"
+                                value={orderTab === 'market' ? 'Giá thị trường' : buyPrice}
+                                onChange={(e) => setBuyPrice(e.target.value)}
+                                disabled={orderTab === 'market'}
+                                className={`w-full px-[12px] py-[8px] pr-[50px] text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none focus:border-gray-400 text-right ${orderTab === 'market' ? 'bg-gray-300 cursor-not-allowed text-gray-500' : ''}`}
                             />
-                            <span className="absolute right-[35px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
-                                USDT
+                            <span className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
+                                {baseToken}
                             </span>
-                            <div className="absolute right-[8px] top-1/2 -translate-y-1/2 flex flex-col">
-                                <button
-                                    onClick={() => adjustValue(buyPrice, 0.01, setBuyPrice, 2)}
-                                    className="w-[20px] h-[16px] border border-gray-300 rounded-t text-gray-500 hover:bg-gray-50 flex items-center justify-center text-[10px]"
-                                >▲</button>
-                                <button
-                                    onClick={() => adjustValue(buyPrice, -0.01, setBuyPrice, 2)}
-                                    className="w-[20px] h-[16px] border border-gray-300 border-t-0 rounded-b text-gray-500 hover:bg-gray-50 flex items-center justify-center text-[10px]"
-                                >▼</button>
-                            </div>
                         </div>
                     </div>
 
@@ -198,25 +340,16 @@ export default function Order() {
                                 Số lượng
                             </span>
                             <input
-                                ref={buyAmountRef}
-                                type="text"
+                                type="number"
+                                step="0.00001"
+                                min={0}
                                 value={buyAmount}
-                                onChange={(e) => handleInputChange(e.target.value, setBuyAmount, 5, buyAmountRef)}
-                                className="w-full px-[12px] py-[8px] pr-[70px] text-[14px] border border-gray-300 rounded focus:outline-none focus:border-gray-400 text-right"
+                                onChange={(e) => setBuyAmount(e.target.value)}
+                                className="w-full px-[12px] py-[8px] pr-[50px] text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none focus:border-gray-400 text-right"
                             />
-                            <span className="absolute right-[35px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
-                                BTC
+                            <span className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
+                                {assetToken}
                             </span>
-                            <div className="absolute right-[8px] top-1/2 -translate-y-1/2 flex flex-col">
-                                <button
-                                    onClick={() => adjustValue(buyAmount, 0.00001, setBuyAmount, 5)}
-                                    className="w-[20px] h-[16px] border border-gray-300 rounded-t text-gray-500 hover:bg-gray-50 flex items-center justify-center text-[10px]"
-                                >▲</button>
-                                <button
-                                    onClick={() => adjustValue(buyAmount, -0.00001, setBuyAmount, 5)}
-                                    className="w-[20px] h-[16px] border border-gray-300 border-t-0 rounded-b text-gray-500 hover:bg-gray-50 flex items-center justify-center text-[10px]"
-                                >▼</button>
-                            </div>
                         </div>
                     </div>
 
@@ -226,11 +359,43 @@ export default function Order() {
                             type="range"
                             min="0"
                             max="100"
-                            className="w-full h-[4px] bg-gray-200 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-[14px] [&::-webkit-slider-thumb]:h-[14px] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-green-500"
+                            value={buySlider}
+                            onChange={(e) => handleBuySlider(Number(e.target.value))}
+                            style={{
+                                background: `linear-gradient(to right, #2EBD85 0%, #2EBD85 ${buySlider}%, #e5e7eb ${buySlider}%, #e5e7eb 100%)`
+                            }}
+                            className="w-full h-[4px] rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-[14px] [&::-webkit-slider-thumb]:h-[14px] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#2EBD85] [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-[14px] [&::-moz-range-thumb]:h-[14px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[#2EBD85] [&::-moz-range-thumb]:shadow-md"
                         />
+                        <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                            <span>0%</span>
+                            <span>25%</span>
+                            <span>50%</span>
+                            <span>75%</span>
+                            <span>100%</span>
+                        </div>
                     </div>
 
-                    {/* TP/SL Checkbox */}
+                    {/* Total Input - Hidden for Market orders */}
+                    {orderTab !== 'market' && (
+                        <div>
+                            <div className="relative">
+                                <span className="absolute left-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-400">
+                                    Tổng
+                                </span>
+                                <input
+                                    type="text"
+                                    value={buyTotal}
+                                    readOnly
+                                    className="w-full px-[12px] py-[8px] pr-[50px] text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none bg-gray-50 text-right cursor-not-allowed"
+                                />
+                                <span className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
+                                    {baseToken}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TP/SL or Slippage Checkbox */}
                     <div className="flex items-center gap-[8px]">
                         <input
                             type="checkbox"
@@ -240,7 +405,7 @@ export default function Order() {
                             className="w-[16px] h-[16px]"
                         />
                         <label htmlFor="buy-tpsl" className="text-[12px] text-gray-700">
-                            TP/SL
+                            {orderTab === 'market' ? 'Khả năng chống trượt giá' : 'TP/SL'}
                         </label>
                     </div>
 
@@ -248,22 +413,28 @@ export default function Order() {
                         {/* Available Balance */}
                         <div className="flex justify-between text-[12px]">
                             <span className="text-gray-500">Khả dụng</span>
-                            <span className="text-gray-900">-- USDT</span>
+                            <span className="text-gray-900">{getBalance(baseToken)} {baseToken}</span>
                         </div>
 
-                        {/* Max Link */}
+                        {/* Max Buy */}
                         <div>
-                            {/* Available Balance */}
                             <div className="flex justify-between text-[12px]">
                                 <span className="text-gray-500">Mua tối đa</span>
-                                <span className="text-gray-900">-- BTC</span>
+                                <span className="text-gray-900">{getMaxBuyAmount()} {assetToken}</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Buy Button */}
-                    <button className="w-full  h-[36px] bg-green-500 hover:bg-green-600 text-white font-medium rounded transition-colors text-[14px]">
-                        Đăng nhập
+                    <button
+                        onClick={handleBuyOrder}
+                        disabled={placeOrderMutation.isPending}
+                        className="w-full h-[36px] bg-[#2EBD85] hover:bg-[#00A63E] text-white font-medium rounded-[6px] transition-colors text-[14px] hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {placeOrderMutation.isPending
+                            ? 'Đang xử lý...'
+                            : isLogin ? `Mua ${assetToken}` : 'Đăng nhập'
+                        }
                     </button>
                 </div>
 
@@ -276,25 +447,16 @@ export default function Order() {
                                 Giá
                             </span>
                             <input
-                                ref={sellPriceRef}
-                                type="text"
-                                value={sellPrice}
-                                onChange={(e) => handleInputChange(e.target.value, setSellPrice, 2, sellPriceRef)}
-                                className="w-full px-[12px] py-[8px] pr-[80px] text-[14px] border border-gray-300 rounded focus:outline-none focus:border-gray-400 text-right"
+                                type={orderTab === 'market' ? 'text' : 'number'}
+                                step="0.01"
+                                value={orderTab === 'market' ? 'Giá thị trường' : sellPrice}
+                                onChange={(e) => setSellPrice(e.target.value)}
+                                disabled={orderTab === 'market'}
+                                className={`w-full px-[12px] py-[8px] pr-[50px] text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none focus:border-gray-400 text-right ${orderTab === 'market' ? 'bg-gray-300 cursor-not-allowed text-gray-500' : ''}`}
                             />
-                            <span className="absolute right-[35px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
-                                USDT
+                            <span className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
+                                {baseToken}
                             </span>
-                            <div className="absolute right-[8px] top-1/2 -translate-y-1/2 flex flex-col">
-                                <button
-                                    onClick={() => adjustValue(sellPrice, 0.01, setSellPrice, 2)}
-                                    className="w-[20px] h-[16px] border border-gray-300 rounded-t text-gray-500 hover:bg-gray-50 flex items-center justify-center text-[10px]"
-                                >▲</button>
-                                <button
-                                    onClick={() => adjustValue(sellPrice, -0.01, setSellPrice, 2)}
-                                    className="w-[20px] h-[16px] border border-gray-300 border-t-0 rounded-b text-gray-500 hover:bg-gray-50 flex items-center justify-center text-[10px]"
-                                >▼</button>
-                            </div>
                         </div>
                     </div>
 
@@ -305,25 +467,16 @@ export default function Order() {
                                 Số lượng
                             </span>
                             <input
-                                ref={sellAmountRef}
-                                type="text"
+                                type="number"
+                                step="0.00001"
+                                min={0}
                                 value={sellAmount}
-                                onChange={(e) => handleInputChange(e.target.value, setSellAmount, 5, sellAmountRef)}
-                                className="w-full px-[12px] py-[8px] pr-[70px] text-[14px] border border-gray-300 rounded focus:outline-none focus:border-gray-400 text-right"
+                                onChange={(e) => setSellAmount(e.target.value)}
+                                className="w-full px-[12px] py-[8px] pr-[50px] text-[14px] border border-gray-300 rounded-[8px] focus:outline-none focus:border-gray-400 text-right"
                             />
-                            <span className="absolute right-[35px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
-                                BTC
+                            <span className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
+                                {assetToken}
                             </span>
-                            <div className="absolute right-[8px] top-1/2 -translate-y-1/2 flex flex-col">
-                                <button
-                                    onClick={() => adjustValue(sellAmount, 0.00001, setSellAmount, 5)}
-                                    className="w-[20px] h-[16px] border border-gray-300 rounded-t text-gray-500 hover:bg-gray-50 flex items-center justify-center text-[10px]"
-                                >▲</button>
-                                <button
-                                    onClick={() => adjustValue(sellAmount, -0.00001, setSellAmount, 5)}
-                                    className="w-[20px] h-[16px] border border-gray-300 border-t-0 rounded-b text-gray-500 hover:bg-gray-50 flex items-center justify-center text-[10px]"
-                                >▼</button>
-                            </div>
                         </div>
                     </div>
 
@@ -333,11 +486,43 @@ export default function Order() {
                             type="range"
                             min="0"
                             max="100"
-                            className="w-full h-[4px] bg-gray-200 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-[14px] [&::-webkit-slider-thumb]:h-[14px] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-red-500"
+                            value={sellSlider}
+                            onChange={(e) => handleSellSlider(Number(e.target.value))}
+                            style={{
+                                background: `linear-gradient(to right, #F6465D 0%, #F6465D ${sellSlider}%, #e5e7eb ${sellSlider}%, #e5e7eb 100%)`
+                            }}
+                            className="w-full h-[4px] rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-[14px] [&::-webkit-slider-thumb]:h-[14px] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#F6465D] [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-[14px] [&::-moz-range-thumb]:h-[14px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[#F6465D] [&::-moz-range-thumb]:shadow-md "
                         />
+                        <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                            <span>0%</span>
+                            <span>25%</span>
+                            <span>50%</span>
+                            <span>75%</span>
+                            <span>100%</span>
+                        </div>
                     </div>
 
-                    {/* TP/SL Checkbox */}
+                    {/* Total Input - Hidden for Market orders */}
+                    {orderTab !== 'market' && (
+                        <div>
+                            <div className="relative">
+                                <span className="absolute left-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-400">
+                                    Tổng
+                                </span>
+                                <input
+                                    type="text"
+                                    value={sellTotal}
+                                    readOnly
+                                    className="w-full px-[12px] py-[8px] pr-[50px] text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none bg-gray-50 text-right cursor-not-allowed"
+                                />
+                                <span className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
+                                    {baseToken}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TP/SL or Slippage Checkbox */}
                     <div className="flex items-center gap-[8px]">
                         <input
                             type="checkbox"
@@ -347,7 +532,7 @@ export default function Order() {
                             className="w-[16px] h-[16px]"
                         />
                         <label htmlFor="sell-tpsl" className="text-[12px] text-gray-700">
-                            TP/SL
+                            {orderTab === 'market' ? 'Khả năng chống trượt giá' : 'TP/SL'}
                         </label>
                     </div>
 
@@ -355,22 +540,28 @@ export default function Order() {
                         {/* Available Balance */}
                         <div className="flex justify-between text-[12px]">
                             <span className="text-gray-500">Khả dụng</span>
-                            <span className="text-gray-900">-- BTC</span>
+                            <span className="text-gray-900">{getBalance(assetToken)} {assetToken}</span>
                         </div>
 
-                        {/* Max Link */}
+                        {/* Max Sell Total */}
                         <div>
-                            {/* Available Balance */}
                             <div className="flex justify-between text-[12px]">
                                 <span className="text-gray-500">Bán tối đa</span>
-                                <span className="text-gray-900">-- USDT</span>
+                                <span className="text-gray-900">{getMaxSellTotal()} {baseToken}</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Sell Button */}
-                    <button className="w-full h-[36px] bg-red-500 hover:bg-red-600 text-white font-medium rounded transition-colors text-[14px]">
-                        Đăng nhập
+                    <button
+                        onClick={handleSellOrder}
+                        disabled={placeOrderMutation.isPending}
+                        className="w-full h-[36px] bg-[#F6465D] hover:bg-[#E7000B] text-white font-medium rounded-[6px] transition-colors text-[14px] hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {placeOrderMutation.isPending
+                            ? 'Đang xử lý...'
+                            : isLogin ? `Bán ${assetToken}` : 'Đăng nhập'
+                        }
                     </button>
                 </div>
             </div>

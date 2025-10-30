@@ -24,7 +24,7 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            const data = await api.post('/api/auth/login', {
+            await api.post('/api/auth/login', {
                 email,
                 password,
             });
@@ -34,7 +34,7 @@ export default function LoginPage() {
 
             // Show success toast
             toast.success('Login successful!');
-            console.log('✅ Login successful:', data);
+            // console.log('✅ Login successful:', data);
 
             // Refetch auth query và ĐỢI hoàn thành trước khi redirect
             await queryClient.refetchQueries({ queryKey: ['auth'] });
@@ -43,7 +43,16 @@ export default function LoginPage() {
             router.push('/');
         } catch (err: unknown) {
             console.error('❌ Login error:', err);
-            const errorMessage = err instanceof Error ? err.message : 'An error occurred during login';
+
+            // Extract error message from backend
+            let errorMessage = 'Đã xảy ra lỗi khi đăng nhập';
+            if (err && typeof err === 'object' && 'response' in err) {
+                const error = err as { response?: { data?: { message?: string } } };
+                if (error.response?.data?.message) {
+                    errorMessage = error.response.data.message;
+                }
+            }
+
             toast.error(errorMessage);
         } finally {
             setLoading(false);

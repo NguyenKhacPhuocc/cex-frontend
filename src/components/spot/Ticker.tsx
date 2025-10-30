@@ -5,20 +5,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CiStar } from "react-icons/ci";
 import { LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import { MdOutlineArrowOutward } from "react-icons/md";
+import { useSpot } from "@/contexts/SpotContext";
 
-export default function Ticker({
-    pair,
-}: {
-    pair: string;
-}) {
+export default function Ticker() {
+    const { symbol: pair, assetToken } = useSpot();
+
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(true);
 
     const symbol = useMemo(() => pair.replace("_", ""), [pair]);
     const baseAssetCode = useMemo(() => {
-        return symbol.replace("USDT", "").toUpperCase();
-    }, [symbol]);
+        return assetToken.toUpperCase();
+    }, [assetToken]);
 
     const checkScroll = () => {
         if (scrollContainerRef.current) {

@@ -19,13 +19,13 @@ interface AuthResponse {
 const fetchAuthStatus = async (): Promise<AuthResponse> => {
     try {
         const response = await api.get<{ isAuthenticated: boolean; user: User }>('/api/auth/verify');
-        console.log('✅ Auth verified:', response.data);
+        // console.log('✅ Auth verified:', response.data);
         return {
             isAuthenticated: response.data.isAuthenticated,
             user: response.data.user,
         };
     } catch (error) {
-        console.log('ℹ️ Not authenticated:', error instanceof Error ? error.message : 'Unknown error');
+        // console.log('ℹ️ Not authenticated:', error instanceof Error ? error.message : 'Unknown error');
         return { isAuthenticated: false, user: null };
     }
 };

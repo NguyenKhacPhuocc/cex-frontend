@@ -13,13 +13,11 @@ import { RiSettingsLine } from "react-icons/ri";
 import { RxSun } from "react-icons/rx";
 import { VscDesktopDownload } from "react-icons/vsc";
 import { useAuth } from "@/hooks/useAuth";
-import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import api from "@/lib/axios";
 
 export default function Header() {
     const { user, isLogin, isLoading, refetch } = useAuth();
-    const router = useRouter();
 
     const handleLogout = async () => {
         try {
@@ -29,20 +27,20 @@ export default function Header() {
             // ✅ Cookies đã được clear bởi backend - KHÔNG cần localStorage!
 
             // Refresh auth state
-            refetch();
+            await refetch();
 
             toast.success('Đăng xuất thành công!');
-            router.push('/');
+            // ✅ KHÔNG redirect - User ở lại trang hiện tại
         } catch (error) {
             console.error('Logout error:', error);
             toast.error('Đăng xuất thất bại!');
         }
     };
-    console.log("isLogin: " + isLogin)
+    // console.log("isLogin: " + isLogin)
 
     return (
         <>
-            <div className="h-[64px] bg-[#ffffff] flex justify-between items-center px-[24px] text-black z-999">
+            <div className="h-[64px] bg-[#ffffff] flex justify-between items-center px-[24px] text-black z-999 fixed top-0 right-0 w-full">
                 <div className="flex flex-row">
                     <Link href={'/'} className="pr-[12px] h-[64px] flex justify-center items-center">
                         <Image src="/binance-h.png" alt="" width={120} height={64} />
@@ -162,7 +160,7 @@ export default function Header() {
                                     </div> */}
                                     <button
                                         onClick={handleLogout}
-                                        className="w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-red-50 text-red-600 transition-colors"
+                                        className="w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-red-50 text-red-600 transition-colors hover:cursor-pointer"
                                     >
                                         <MdLogout className="text-[18px]" />
                                         <span className="text-[14px] font-medium">Đăng xuất</span>
