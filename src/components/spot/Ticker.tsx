@@ -6,9 +6,12 @@ import { CiStar } from "react-icons/ci";
 import { LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import { MdOutlineArrowOutward } from "react-icons/md";
 import { useSpot } from "@/contexts/SpotContext";
+import { useTicker } from "@/hooks/useTicker";
 
 export default function Ticker() {
-    const { symbol: pair, assetToken } = useSpot();
+    const { symbol: pair, assetToken, baseToken } = useSpot();
+
+    const { ticker, isLoading: isLoadingTicker } = useTicker(pair);
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -18,6 +21,50 @@ export default function Ticker() {
     const baseAssetCode = useMemo(() => {
         return assetToken.toUpperCase();
     }, [assetToken]);
+
+    // Format number với dấu chấm cho hàng nghìn, dấu phẩy cho thập phân (format Việt Nam)
+    const formatNumber = (num: number | undefined, decimals: number): string => {
+        if (typeof num !== 'number' || isNaN(num) || num === 0) return '0';
+        const parts = num.toFixed(decimals).split('.');
+        const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        const decimalPart = parts[1];
+        return decimalPart ? `${integerPart},${decimalPart}` : integerPart;
+    };
+
+    // Format price với số chữ số thập phân phù hợp
+    const formatPrice = (price: number | undefined): string => {
+        if (!price || price === 0) return '0';
+        if (price >= 1000) return formatNumber(price, 2);
+        if (price >= 1) return formatNumber(price, 2);
+        if (price >= 0.01) return formatNumber(price, 4);
+        return formatNumber(price, 6);
+    };
+
+    // Format large number (volume)
+    const formatVolume = (num: number | undefined): string => {
+        if (!num || num === 0) return '0';
+        if (num >= 1000000) {
+            return formatNumber(num / 1000000, 2) + 'M';
+        }
+        if (num >= 1000) {
+            return formatNumber(num / 1000, 2) + 'K';
+        }
+        return formatNumber(num, 2);
+    };
+
+    // Get display values from ticker
+    const currentPrice = ticker?.price || 0;
+    const change24h = ticker?.change24h || 0;
+    const absoluteChange = currentPrice > 0 ? (currentPrice * change24h) / 100 : 0;
+    const high24h = ticker?.high24h || 0;
+    const low24h = ticker?.low24h || 0;
+    const volume24hUSDT = ticker?.volume24h || 0;
+    const volume24hBTC = currentPrice > 0 ? volume24hUSDT / currentPrice : 0;
+    const pairDisplay = ticker?.pair || `${assetToken}/${baseToken}`;
+
+    // Color based on change
+    const priceColor = change24h >= 0 ? 'text-[#2EBD85]' : 'text-[#F6465D]';
+    const changeColor = change24h >= 0 ? 'text-[#2EBD85]' : 'text-[#F6465D]';
 
     const checkScroll = () => {
         if (scrollContainerRef.current) {
@@ -86,20 +133,31 @@ export default function Ticker() {
                             <Image src={`/asset-${baseAssetCode}.png`} alt={symbol} width={24} height={24} />
                         </div>
                         <div className="pr-[8px]">
-                            <div className="text-[20px] leading-[20px] text-black font-[500]">BTC/USDT</div>
+                            <div className="text-[20px] leading-[20px] text-black font-medium">{pairDisplay}</div>
                             <div className="text-[12px] text-[#9c9c9c] flex gap-[4px] items-center">
                                 <Link href={`/price/${baseAssetCode}`} className="font-[400] text-[#9c9c9c]">
-                                    Giá Bitcoin
+                                    Giá {baseAssetCode}
                                 </Link>
                                 <MdOutlineArrowOutward className="text-[6px]" />
                             </div>
                         </div>
                     </div>
-                    <div className="flex justify-center items-center flex-col items-start">
-                        <div className="text-[20px] text-[#2EBD85] font-[500] leading-[20px]">113.619,49</div>
-                        <div className="text-[12px] text-black">
-                            $ 113.591,65
-                        </div>
+                    <div className="flex justify-center items-center flex-col">
+                        {isLoadingTicker ? (
+                            <>
+                                <div className="text-[20px] text-gray-400 font-medium leading-[20px]">--</div>
+                                <div className="text-[12px] text-gray-400">--</div>
+                            </>
+                        ) : (
+                            <>
+                                <div className={`text-[20px] ${priceColor} font-medium leading-[20px]`}>
+                                    {formatPrice(currentPrice)}
+                                </div>
+                                <div className="text-[12px] text-black">
+                                    $ {formatPrice(currentPrice)}
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
                 <div className="flex-1 flex px-[16px] relative justify-center items-center">
@@ -130,23 +188,45 @@ export default function Ticker() {
                                 <div className="text-[#9c9c9c] whitespace-nowrap mb-[2px]">
                                     Biến động trong 24 giờ
                                 </div>
-                                <div className="text-[#F6465D]"> -1.692,58-1,46%</div>
+                                {isLoadingTicker ? (
+                                    <div className="text-gray-400">--</div>
+                                ) : (
+                                    <div className={changeColor}>
+                                        {change24h >= 0 ? '+' : ''}{formatPrice(Math.abs(absoluteChange))} ({change24h >= 0 ? '+' : ''}{change24h.toFixed(2)}%)
+                                    </div>
+                                )}
                             </div>
                             <div className="flex  flex-col justify-center">
                                 <div className="text-[#9c9c9c] whitespace-nowrap mb-[2px]">Giá cao nhất 24h</div>
-                                <div className="">116.400,00</div>
+                                {isLoadingTicker ? (
+                                    <div className="text-gray-400">--</div>
+                                ) : (
+                                    <div className="">{formatPrice(high24h)}</div>
+                                )}
                             </div>
                             <div className="flex  flex-col justify-center">
                                 <div className="text-[#9c9c9c] whitespace-nowrap mb-[2px]">Giá thấp nhất 24h</div>
-                                <div className="">113.483,30</div>
+                                {isLoadingTicker ? (
+                                    <div className="text-gray-400">--</div>
+                                ) : (
+                                    <div className="">{formatPrice(low24h)}</div>
+                                )}
                             </div>
                             <div className="flex  flex-col justify-center">
-                                <div className="text-[#9c9c9c] whitespace-nowrap mb-[2px]">KL 24h(BTC)</div>
-                                <div className="">19.214,07</div>
+                                <div className="text-[#9c9c9c] whitespace-nowrap mb-[2px]">KL 24h({assetToken})</div>
+                                {isLoadingTicker ? (
+                                    <div className="text-gray-400">--</div>
+                                ) : (
+                                    <div className="">{formatVolume(volume24hBTC)}</div>
+                                )}
                             </div>
                             <div className="flex  flex-col justify-center">
-                                <div className="text-[#9c9c9c] whitespace-nowrap mb-[2px]">KL 24h(USDT)</div>
-                                <div className="">2.207.398.687,38</div>
+                                <div className="text-[#9c9c9c] whitespace-nowrap mb-[2px]">KL 24h({baseToken})</div>
+                                {isLoadingTicker ? (
+                                    <div className="text-gray-400">--</div>
+                                ) : (
+                                    <div className="">{formatVolume(volume24hUSDT)}</div>
+                                )}
                             </div>
                             <div className="flex flex-col justify-center">
                                 <div className="text-[#9c9c9c] whitespace-nowrap mb-[2px]">Mạng lưới</div>

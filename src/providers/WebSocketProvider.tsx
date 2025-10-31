@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { io, Socket } from "socket.io-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,22 +34,25 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     const queryClient = useQueryClient();
     const [socket, setSocket] = useState<Socket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
+    const socketRef = useRef<Socket | null>(null);
 
     useEffect(() => {
-        if (!isLogin) {
-            // Disconnect if user logs out
-            if (socket) {
-                console.log("🔌 Disconnecting WebSocket (user logged out)");
-                socket.disconnect();
-                setSocket(null);
-                setIsConnected(false);
-            }
+        // ✅ ALWAYS connect WebSocket - even when logged out
+        // Public market data (ticker, orderbook) doesn't require authentication
+        // Only private events (balance, orders) require authentication
+
+        // If socket already exists and connected, don't reconnect
+        if (socketRef.current && socketRef.current.connected) {
             return;
         }
 
-        // Create socket connection ONCE
+        // Create socket connection (works for both logged in and logged out users)
         console.log("🔌 Connecting to WebSocket...", SOCKET_URL);
-        console.log("🔑 Using httpOnly cookie for authentication");
+        if (isLogin) {
+            console.log("🔑 Using httpOnly cookie for authentication");
+        } else {
+            console.log("👤 Connecting as anonymous (public market data only)");
+        }
 
         const newSocket = io(`${SOCKET_URL}/trading`, {
             withCredentials: true,
@@ -66,8 +69,12 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         });
 
         newSocket.on("connected", (data) => {
-            console.log("✅ WebSocket authenticated:", data);
-            console.log("👤 My User ID for WebSocket room:", data.userId);
+            if (data?.userId) {
+                console.log("✅ WebSocket authenticated:", data);
+                console.log("👤 My User ID for WebSocket room:", data.userId);
+            } else {
+                console.log("✅ WebSocket connected (anonymous - public data only)");
+            }
         });
 
         newSocket.on("disconnect", (reason) => {
@@ -124,12 +131,14 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
             }, 100);
         });
 
+        socketRef.current = newSocket;
         setSocket(newSocket);
 
         // Cleanup on unmount
         return () => {
             console.log("🔌 Cleaning up WebSocket connection");
             newSocket.disconnect();
+            socketRef.current = null;
             setSocket(null);
             setIsConnected(false);
         };

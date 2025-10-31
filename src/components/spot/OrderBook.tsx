@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { IoIosArrowRoundUp } from "react-icons/io";
 import { useOrderBook } from "@/hooks/useOrderBook";
+import { useTicker } from "@/hooks/useTicker";
 import { useSpot } from "@/contexts/SpotContext";
 
 /**
@@ -13,9 +14,6 @@ import { useSpot } from "@/contexts/SpotContext";
  * - Real-time updates khi có orders mới/matched
  */
 
-const currentPrice = 115307.00;
-const priceChange24h = -1.46; // %
-
 type ViewMode = "all" | "asks" | "bids";
 
 export default function OrderBook() {
@@ -24,7 +22,14 @@ export default function OrderBook() {
     const { symbol } = useSpot();
 
     // 🔥 Connect to OrderBook WebSocket
-    const { orderBook, isLoading, isConnected } = useOrderBook(symbol);
+    const { orderBook } = useOrderBook(symbol);
+
+    // 🔥 Get ticker data (last trade price, change24h)
+    const { ticker } = useTicker(symbol);
+
+    // Current price = last trade price, fallback to 0 if not loaded
+    const currentPrice = ticker?.price || 0;
+    const priceChange24h = ticker?.change24h || 0;
 
     // Real-time data từ WebSocket (đã sorted từ backend)
     const sortedAsks = orderBook?.asks || [];
@@ -158,22 +163,30 @@ export default function OrderBook() {
                     </div>
                 )}
 
-                {/* Current Price */}
+                {/* Current Price - Last Trade Price */}
                 <div className="px-[12px] py-[8px] border-gray-200 bg-gray-50">
-                    <div className="flex items-center gap-[8px]">
+                    <div className="flex items-end gap-[4px]">
                         <div className="flex items-center">
-                            <span className={`text-[20px] font-[500] ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                {formatPrice(currentPrice)}
-                            </span>
-                            <IoIosArrowRoundUp className={`text-[22px] ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`} />
+                            {currentPrice > 0 ? (
+                                <>
+                                    <span className={`text-[20px] font-medium ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                        {formatPrice(currentPrice)}
+                                    </span>
+                                    <IoIosArrowRoundUp
+                                        className={`text-[22px] ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}
+                                        style={{ transform: priceChange24h < 0 ? 'rotate(180deg)' : 'none' }}
+                                    />
+                                </>
+                            ) : (
+                                <span className="text-[20px] font-medium text-gray-400">
+                                    --
+                                </span>
+                            )}
                         </div>
-                        <span className="text-[12px] text-gray-500">
+                        <span className="text-[12px] text-gray-500 mb-[5px]">
                             ${formatPrice(currentPrice)}
                         </span>
                     </div>
-                    {/* <div className={`text-[12px] ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        {priceChange24h >= 0 ? '+' : ''}{priceChange24h}%
-                    </div> */}
                 </div>
 
                 {/* Bids (Buy Orders) - Display từ cao -> thấp (gần current price nhất ở trên) */}
