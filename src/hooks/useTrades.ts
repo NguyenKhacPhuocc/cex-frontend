@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { useEffect, useState } from "react";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
@@ -133,7 +133,7 @@ export const useMarketTrades = (symbol: string) => {
 };
 
 /**
- * Hook to get user's own trades (requires authentication)
+ * Hook to get user's own trades for a specific symbol (requires authentication)
  */
 export const useUserTrades = (symbol: string, enabled: boolean = true) => {
   return useQuery({
@@ -142,4 +142,62 @@ export const useUserTrades = (symbol: string, enabled: boolean = true) => {
     enabled: enabled && !!symbol,
     staleTime: 10000, // 10 seconds
   });
+};
+
+// Fetch all user trades (no symbol filter) - for trade history tab
+const fetchAllUserTrades = async (): Promise<UserTrade[]> => {
+  console.log(`🔄 [fetchAllUserTrades] Fetching all user trades...`);
+  const result = await apiClient.get<UserTrade[]>(`/api/trades/history`);
+  console.log(
+    `✅ [fetchAllUserTrades] Received ${result.length} trades:`,
+    result
+  );
+  return result;
+};
+
+/**
+ * Hook to get all user's trades (trade history tab) with real-time updates via WebSocket
+ */
+export const useAllUserTrades = (enabled: boolean = true) => {
+  const { socket, isConnected } = useWebSocketContext();
+  const queryClient = useQueryClient();
+
+  // Fetch all user trades
+  const query = useQuery({
+    queryKey: ["trades", "user", "all"],
+    queryFn: fetchAllUserTrades,
+    enabled,
+    staleTime: 30000, // 30 seconds
+  });
+
+  // Listen for trade executed events via WebSocket to auto-refetch
+  useEffect(() => {
+    if (!socket || !isConnected || !enabled) return;
+
+    const handleTradeExecuted = (data: {
+      tradeId: string;
+      userId: string;
+      side: string;
+      symbol: string;
+      price: number;
+      amount: number;
+      timestamp: number;
+    }) => {
+      console.log("🎯 [WebSocket] Trade executed (trade history tab):", data);
+      // When new trade executed, add it to trade history
+      // Invalidate to refresh trade history list
+      queryClient.invalidateQueries({
+        queryKey: ["trades", "user", "all"],
+        refetchType: "active",
+      });
+    };
+
+    socket.on("trade:executed", handleTradeExecuted);
+
+    return () => {
+      socket.off("trade:executed", handleTradeExecuted);
+    };
+  }, [socket, isConnected, enabled, queryClient]);
+
+  return query;
 };

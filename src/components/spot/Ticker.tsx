@@ -129,8 +129,8 @@ export default function Ticker() {
                         <CiStar className="text-[24px] border rounded-[8px] border-gray-200" />
                     </div>
                     <div className="flex justify-center items-center gap-[8px]">
-                        <div className="">
-                            <Image src={`/asset-${baseAssetCode}.png`} alt={symbol} width={24} height={24} />
+                        <div className=" rounded-full overflow-hidden">
+                            <Image src={`/${baseAssetCode}.png`} alt={symbol} width={24} height={24} />
                         </div>
                         <div className="pr-[8px]">
                             <div className="text-[20px] leading-[20px] text-black font-medium">{pairDisplay}</div>

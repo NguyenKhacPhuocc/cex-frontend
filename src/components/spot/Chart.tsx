@@ -64,15 +64,35 @@ export default function Chart({ chartData }: ChartProps) {
         { id: "detail", label: "Chi tiết" },
     ];
 
-    const timeframes = [
+    // Timeframes for TradingView tab (no 1s, but has 1m, 30m)
+    const tradingViewTimeframes = [
         { label: "Thời gian", value: "time" },
-        { label: "1s", value: "1s" },
-        { label: "15Phút", value: "15m" },
+        { label: "1m", value: "1m" },
+        { label: "15m", value: "15m" },
+        { label: "30m", value: "30m" },
         { label: "1h", value: "1h" },
         { label: "4h", value: "4h" },
         { label: "1ngày", value: "1d" },
         { label: "1Tuần", value: "1w" },
     ];
+
+    // Timeframes for Original chart tab (has 1s)
+    const originalTimeframes = [
+        { label: "Thời gian", value: "time" },
+        { label: "1s", value: "1s" },
+        { label: "1m", value: "1m" },
+        { label: "15m", value: "15m" },
+        { label: "30m", value: "30m" },
+        { label: "1h", value: "1h" },
+        { label: "4h", value: "4h" },
+        { label: "1ngày", value: "1d" },
+        { label: "1Tuần", value: "1w" },
+    ];
+
+    // Get timeframes based on active chart tab
+    const getTimeframes = () => {
+        return activeChartTab === "tradingview" ? tradingViewTimeframes : originalTimeframes;
+    };
 
     // Init Chart gốc (lightweight-charts) - chỉ khi đang ở tab "original"
     useEffect(() => {
@@ -188,10 +208,30 @@ export default function Chart({ chartData }: ChartProps) {
         }
     }, [activeChartTab, chartData]);
 
+    // Map timeframe value to TradingView interval format
+    // Note: TradingView interval format:
+    // - Numbers (1, 15, 30, 60) = minutes (1 = 1 minute, 15 = 15 minutes, 30 = 30 minutes, 60 = 1 hour)
+    // - "1S" = 1 second (requires Premium account)
+    // - "D" = day, "W" = week, "M" = month
+    const getTradingViewInterval = (tf: string): string => {
+        const intervalMap: { [key: string]: string } = {
+            "1s": "1S", // 1 second (may require Premium account, falls back to 1 minute if not available)
+            "1m": "1", // 1 minute
+            "15m": "15", // 15 minutes
+            "30m": "30", // 30 minutes
+            "1h": "60", // 60 minutes = 1 hour
+            "4h": "240", // 240 minutes = 4 hours
+            "1d": "D", // 1 day
+            "1w": "W", // 1 week
+            "time": "60", // default to 1 hour
+        };
+        return intervalMap[tf] || "60";
+    };
+
     const handleTimeframeChange = (tf: string) => {
+        if (tf === "time") return; // Skip "Thời gian" label button
         setTimeframe(tf);
         // console.log('Timeframe changed to:', tf);
-        // TODO: Fetch new data based on timeframe
     };
 
     // TradingView Widget
@@ -205,10 +245,11 @@ export default function Chart({ chartData }: ChartProps) {
             script.async = true;
             script.onload = () => {
                 if ((window as any).TradingView) {
+                    const interval = getTradingViewInterval(timeframe);
                     new (window as any).TradingView.widget({
                         autosize: true,
                         symbol: `BINANCE:${symbol.replace("_", "")}`,
-                        interval: "60",
+                        interval: interval,
                         timezone: "Etc/UTC",
                         theme: "light",
                         style: "1",
@@ -247,7 +288,7 @@ export default function Chart({ chartData }: ChartProps) {
                 }
             };
         }
-    }, [activeChartTab, symbol]);
+    }, [activeChartTab, symbol, timeframe]);
 
     return (
         <div className="bg-white min-h-[525px] rounded-[8px] flex flex-col relative overflow-hidden">
@@ -279,12 +320,12 @@ export default function Chart({ chartData }: ChartProps) {
                         <div className="h-[36px] w-full border-b border-[#f0f0f0] flex items-center justify-between px-[12px]">
                             {/* Timeframes */}
                             <div className="flex items-center gap-[4px]">
-                                {timeframes.map((tf) => (
+                                {getTimeframes().map((tf) => (
                                     <button
                                         key={tf.value}
                                         onClick={() => handleTimeframeChange(tf.value)}
                                         className={`px-[12px] py-[4px] text-[12px] rounded transition-colors ${timeframe === tf.value
-                                            ? ' text-black'
+                                            ? 'bg-[#FDDD5D] text-black'
                                             : 'text-[#666] hover:bg-gray-50'
                                             }`}
                                     >
@@ -327,12 +368,12 @@ export default function Chart({ chartData }: ChartProps) {
                         <div className="h-[36px] border-b border-[#f0f0f0] flex items-center justify-between px-[12px]">
                             {/* Timeframes */}
                             <div className="flex items-center gap-[4px]">
-                                {timeframes.map((tf) => (
+                                {getTimeframes().map((tf) => (
                                     <button
                                         key={tf.value}
                                         onClick={() => handleTimeframeChange(tf.value)}
                                         className={`px-[12px] py-[4px] text-[12px] rounded transition-colors ${timeframe === tf.value
-                                            ? ' text-black'
+                                            ? 'bg-[#FDDD5D] text-black'
                                             : 'text-[#666] hover:bg-gray-50'
                                             }`}
                                     >

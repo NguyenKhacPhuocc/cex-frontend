@@ -1,9 +1,12 @@
 "use client"
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { CiSearch } from "react-icons/ci";
 import { IoChevronDown } from "react-icons/io5";
 import DateFilters from "@/components/DateFilters";
+import { useAuth } from "@/hooks/useAuth";
+import { useOpenOrders, useOrderHistory } from "@/hooks/useOrders";
+import { useAllUserTrades } from "@/hooks/useTrades";
+import { useSpot } from "@/contexts/SpotContext";
 
 interface TableHeader {
     label: string;
@@ -12,6 +15,8 @@ interface TableHeader {
 }
 
 export default function OpenOrders() {
+    const { isLogin } = useAuth();
+    const { symbol } = useSpot();
     const [activeTab, setActiveTab] = useState("orders");
     const [hideOtherPairs, setHideOtherPairs] = useState(false);
     const [sortColumn, setSortColumn] = useState<string | null>(null);
@@ -20,15 +25,31 @@ export default function OpenOrders() {
     const [sortByTime] = useState("Sắp xếp theo thời gian đặt lệnh"); // TODO: Implement dropdown later
     const tabsRef = useRef<{ [key: string]: HTMLButtonElement | null }>({});
 
-    // Thay đổi thành true để test giao diện đã đăng nhập
-    const isLoggedIn = true;
+    // 🔥 Fetch data based on active tab
+    const { orders: openOrders, isLoading: isLoadingOpenOrders } = useOpenOrders(isLogin && activeTab === "orders");
+    const { data: orderHistory, isLoading: isLoadingHistory } = useOrderHistory(isLogin && activeTab === "history");
+    const { data: tradeHistory, isLoading: isLoadingTradeHistory } = useAllUserTrades(isLogin && activeTab === "trade-history");
+
+    // Filter by symbol if hideOtherPairs is true
+    const filteredOpenOrders = useMemo(() => {
+        if (!hideOtherPairs || !symbol) return openOrders;
+        return openOrders.filter(order => order.market.symbol === symbol);
+    }, [openOrders, hideOtherPairs, symbol]);
+
+    const filteredOrderHistory = useMemo(() => {
+        if (!hideOtherPairs || !symbol) return orderHistory || [];
+        return (orderHistory || []).filter(order => order.market.symbol === symbol);
+    }, [orderHistory, hideOtherPairs, symbol]);
+
+    const filteredTradeHistory = useMemo(() => {
+        if (!hideOtherPairs || !symbol) return tradeHistory || [];
+        return (tradeHistory || []).filter(trade => trade.market === symbol);
+    }, [tradeHistory, hideOtherPairs, symbol]);
 
     const tabs = [
-        { id: "orders", label: "Giao dịch đang chờ khớp lệnh", count: 0 },
+        { id: "orders", label: "Giao dịch đang chờ khớp lệnh", count: filteredOpenOrders.length },
         { id: "history", label: "Lịch sử lệnh", count: null },
         { id: "trade-history", label: "Lịch sử giao dịch", count: null },
-        { id: "funds", label: "Vốn", count: null },
-        { id: "bot", label: "Bot", count: null },
     ];
 
     const ordersTableHeaders: TableHeader[] = [
@@ -104,7 +125,67 @@ export default function OpenOrders() {
             days,
             tab: activeTab
         });
-        // TODO: Fetch data with new date range
+        // TODO: Fetch data with new date range (filter on backend)
+    };
+
+    // Format helpers
+    const formatNumber = (num: number | undefined | null, decimals: number): string => {
+        if (typeof num !== 'number' || isNaN(num) || num === 0) return '0';
+        const parts = num.toFixed(decimals).split('.');
+        const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        const decimalPart = parts[1];
+        return decimalPart ? `${integerPart},${decimalPart}` : integerPart;
+    };
+
+    const formatDate = (date: string | Date | undefined): string => {
+        if (!date) return '--:--:--';
+        try {
+            const d = new Date(date);
+            if (isNaN(d.getTime())) return '--:--:--';
+            return d.toLocaleString('vi-VN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+        } catch {
+            return '--:--:--';
+        }
+    };
+
+    const formatTime = (date: string | Date | undefined): string => {
+        if (!date) return '--:--:--';
+        try {
+            const d = new Date(date);
+            if (isNaN(d.getTime())) return '--:--:--';
+            return d.toLocaleTimeString('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+            });
+        } catch {
+            return '--:--:--';
+        }
+    };
+
+    const getOrderStatusColor = (status: string): string => {
+        switch (status) {
+            case 'OPEN':
+                return 'text-blue-600';
+            case 'FILLED':
+                return 'text-green-600';
+            case 'CANCELLED':
+                return 'text-red-600';
+            case 'PARTIALLY_FILLED':
+                return 'text-yellow-600';
+            default:
+                return 'text-gray-600';
+        }
+    };
+
+    const getSideColor = (side: string): string => {
+        return side === 'BUY' || side === 'buy' ? 'text-green-500' : 'text-red-500';
     };
 
     // Update underline position khi activeTab thay đổi
@@ -150,7 +231,7 @@ export default function OpenOrders() {
                     />
                 </div>
 
-                {isLoggedIn && activeTab === "orders" && (
+                {isLogin && activeTab === "orders" && (
                     <label className="flex items-center gap-[8px] text-[12px] font-medium cursor-pointer">
                         <input
                             type="checkbox"
@@ -161,7 +242,7 @@ export default function OpenOrders() {
                         Ẩn các cặp tỉ giá khác
                     </label>
                 )}
-                {isLoggedIn && (activeTab === "history" || activeTab === "trade-history") && (
+                {isLogin && (activeTab === "history" || activeTab === "trade-history") && (
                     <div className="flex items-center gap-[12px]">
                         <button className="flex items-center gap-[4px] text-[12px] text-[#9c9c9c] hover:text-black">
                             {sortByTime}
@@ -181,7 +262,7 @@ export default function OpenOrders() {
             </div>
 
             {/* Content */}
-            {!isLoggedIn ? (
+            {!isLogin ? (
                 <div className="flex-1 flex items-center justify-center">
                     <div className="text-center text-[14px]">
                         <Link href="/login" className="text-[#D89F00] hover:underline">
@@ -240,19 +321,120 @@ export default function OpenOrders() {
                                     })}
                                 </tr>
                             </thead>
-                        </table>
-                    </div>
+                            <tbody>
+                                {/* Tab: Open Orders */}
+                                {activeTab === "orders" && (
+                                    <>
+                                        {isLoadingOpenOrders ? (
+                                            <tr>
+                                                <td colSpan={ordersTableHeaders.length} className="px-[12px] py-[24px] text-center text-[14px] text-[#9c9c9c]">
+                                                    Đang tải...
+                                                </td>
+                                            </tr>
+                                        ) : filteredOpenOrders.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={ordersTableHeaders.length} className="px-[12px] py-[24px] text-center text-[14px] text-[#9c9c9c]">
+                                                    Bạn không có lệnh đang mở.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            filteredOpenOrders.map((order) => (
+                                                <tr key={order.id} className="border-t border-[#F5F5F5] hover:bg-gray-50">
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatTime(order.createdAt)}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{order.market.symbol.replace('_', '/')}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{order.type}</td>
+                                                    <td className={`px-[12px] py-[12px] text-[12px] ${getSideColor(order.side)}`}>{order.side}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{order.price ? formatNumber(order.price, 2) : 'Market'}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(order.amount, 5)}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber((order.price || 0) * order.amount, 2)}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(order.filled, 5)}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(order.amount, 5)}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">--</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">--</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">--</td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </>
+                                )}
 
-                    {/* Empty State */}
-                    <div className="flex-1 flex flex-col items-center justify-center gap-[16px]">
-                        <CiSearch className="text-[100px] bg-[#F5F5F5] p-[20px] rounded-[8px] font-bold text-[#9c9c9c]" />
-                        <p className="text-[14px] text-[#9c9c9c]">
-                            {activeTab === "history"
-                                ? "Bạn không có lịch sử đặt lệnh."
-                                : activeTab === "trade-history"
-                                    ? "Bạn không có giao dịch."
-                                    : "Bạn không có lệnh đang mở."}
-                        </p>
+                                {/* Tab: Order History */}
+                                {activeTab === "history" && (
+                                    <>
+                                        {isLoadingHistory ? (
+                                            <tr>
+                                                <td colSpan={historyTableHeaders.length} className="px-[12px] py-[24px] text-center text-[14px] text-[#9c9c9c]">
+                                                    Đang tải...
+                                                </td>
+                                            </tr>
+                                        ) : filteredOrderHistory.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={historyTableHeaders.length} className="px-[12px] py-[24px] text-center text-[14px] text-[#9c9c9c]">
+                                                    Bạn không có lịch sử đặt lệnh.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            filteredOrderHistory.map((order) => {
+                                                const avgPrice = order.filled > 0 ? (order.price || 0) : 0;
+                                                return (
+                                                    <tr key={order.id} className="border-t border-[#F5F5F5] hover:bg-gray-50">
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatDate(order.createdAt)}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{order.market.symbol.replace('_', '/')}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{order.type}</td>
+                                                        <td className={`px-[12px] py-[12px] text-[12px] ${getSideColor(order.side)}`}>{order.side}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(avgPrice, 2)}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(order.price || 0, 2)}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(order.filled, 5)}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(order.amount, 5)}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber((order.price || 0) * order.amount, 2)}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber((order.price || 0) * order.amount, 2)}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">--</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">--</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">--</td>
+                                                        <td className={`px-[12px] py-[12px] text-[12px] ${getOrderStatusColor(order.status)}`}>{order.status}</td>
+                                                    </tr>
+                                                );
+                                            })
+                                        )}
+                                    </>
+                                )}
+
+                                {/* Tab: Trade History */}
+                                {activeTab === "trade-history" && (
+                                    <>
+                                        {isLoadingTradeHistory ? (
+                                            <tr>
+                                                <td colSpan={tradeHistoryTableHeaders.length} className="px-[12px] py-[24px] text-center text-[14px] text-[#9c9c9c]">
+                                                    Đang tải...
+                                                </td>
+                                            </tr>
+                                        ) : filteredTradeHistory.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={tradeHistoryTableHeaders.length} className="px-[12px] py-[24px] text-center text-[14px] text-[#9c9c9c]">
+                                                    Bạn không có giao dịch.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            filteredTradeHistory.map((trade) => (
+                                                <tr key={trade.id} className="border-t border-[#F5F5F5] hover:bg-gray-50">
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{trade.id}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatTime(trade.timestamp)}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{trade.market.replace('_', '/')}</td>
+                                                    <td className={`px-[12px] py-[12px] text-[12px] ${getSideColor(trade.side)}`}>{trade.side}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(trade.price, 2)}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(trade.amount, 5)}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(trade.fee, 6)}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{trade.counterparty.type === 'BUYER' ? 'Maker' : 'Taker'}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">--</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(trade.total), 2)}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px] text-right">{formatNumber(Number(trade.total), 2)}</td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             )}

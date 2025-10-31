@@ -1,13 +1,13 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { CiStar } from "react-icons/ci";
 import { FaStar } from "react-icons/fa";
-import { IoSearchOutline } from "react-icons/io5";
+import { IoSearchOutline, IoChevronBack, IoChevronForward } from "react-icons/io5";
 import { FaSort, FaSortUp, FaSortDown } from "react-icons/fa";
 import { useTradingPairs } from "@/hooks/useTradingPairs";
 
-type TabType = "ALL" | "FDUSD" | "BNB" | "BTC" | "ALTS" | "FIAT";
+type TabType = "ALL" | "USDT" | "FDUSD" | "ETH" | "BNB" | "BTC" | "ALTS" | "FIAT";
 type SortField = "pair" | "price" | "change24h" | null;
 type SortOrder = "asc" | "desc";
 
@@ -28,16 +28,52 @@ const saveFavoritePairs = (favorites: string[]): void => {
 export default function TradingPairs() {
     const router = useRouter();
     const { tickers, isLoading } = useTradingPairs();
-    const [activeTab, setActiveTab] = useState<TabType>("ALL");
+    const [activeTab, setActiveTab] = useState<TabType>("USDT");
     const [searchTerm, setSearchTerm] = useState("");
     const [sortField, setSortField] = useState<SortField>(null);
     const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
     const [favoritePairs, setFavoritePairs] = useState<string[]>([]);
+    const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+    const [showLeftScroll, setShowLeftScroll] = useState(false);
+    const [showRightScroll, setShowRightScroll] = useState(false);
+    const tabsContainerRef = useRef<HTMLDivElement>(null);
 
     // Load favorites from localStorage on mount
     useEffect(() => {
         setFavoritePairs(getFavoritePairs());
     }, []);
+
+    // Check if tabs container can scroll and update scroll buttons visibility
+    const checkScrollButtons = () => {
+        if (!tabsContainerRef.current) return;
+        const container = tabsContainerRef.current;
+        const { scrollLeft, scrollWidth, clientWidth } = container;
+        setShowLeftScroll(scrollLeft > 0);
+        setShowRightScroll(scrollLeft < scrollWidth - clientWidth - 1);
+    };
+
+    useEffect(() => {
+        checkScrollButtons();
+        const container = tabsContainerRef.current;
+        if (!container) return;
+        container.addEventListener("scroll", checkScrollButtons);
+        window.addEventListener("resize", checkScrollButtons);
+        return () => {
+            container.removeEventListener("scroll", checkScrollButtons);
+            window.removeEventListener("resize", checkScrollButtons);
+        };
+    }, []);
+
+    const scrollTabs = (direction: "left" | "right") => {
+        if (!tabsContainerRef.current) return;
+        const container = tabsContainerRef.current;
+        const scrollAmount = 200; // pixels to scroll
+        const currentScroll = container.scrollLeft;
+        const newScroll = direction === "left"
+            ? currentScroll - scrollAmount
+            : currentScroll + scrollAmount;
+        container.scrollTo({ left: newScroll, behavior: "smooth" });
+    };
 
     const formatNumber = (num: number, decimals: number) => {
         const parts = num.toFixed(decimals).split('.');
@@ -78,6 +114,10 @@ export default function TradingPairs() {
             switch (activeTab) {
                 case "BTC":
                     return quoteAsset === "BTC";
+                case "USDT":
+                    return quoteAsset === "USDT";
+                case "ETH":
+                    return quoteAsset === "ETH";
                 case "BNB":
                     return quoteAsset === "BNB";
                 case "FDUSD":
@@ -129,10 +169,12 @@ export default function TradingPairs() {
         );
     };
 
-    // Filter by search term
-    let filteredPairs = pairsWithFavorites.filter((pair) =>
-        pair.pair.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Filter by search term and favorites
+    let filteredPairs = pairsWithFavorites.filter((pair) => {
+        const matchesSearch = pair.pair.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesFavorites = !showFavoritesOnly || pair.isFavorite;
+        return matchesSearch && matchesFavorites;
+    });
 
     // Apply sorting
     if (sortField) {
@@ -163,7 +205,8 @@ export default function TradingPairs() {
         router.push(`/spot/${symbol}`);
     };
 
-    const tabs: TabType[] = ["ALL", "FDUSD", "BNB", "BTC", "ALTS", "FIAT"];
+    // const tabs: TabType[] = ["ALL", "USDT", "ETH", "BNB", "BTC", "FDUSD", "ALTS", "FIAT"];
+    const tabs: TabType[] = ["ALL", "USDT", "ETH", "BNB", "BTC", "ALTS", "FIAT"];
 
     return (
         <div className="flex-1 bg-white rounded-[8px] flex flex-col">
@@ -183,19 +226,64 @@ export default function TradingPairs() {
 
             {/* Tabs */}
             <div className="px-[16px] border-b border-gray-200">
-                <div className="flex gap-[16px] overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {tabs.map((tab) => (
+                <div className="flex items-center gap-[4px] relative justify-center">
+                    {/* Favorite Filter Button */}
+                    <button
+                        onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                        className={`flex items-center justify-center w-[32px] h-[32px] rounded-[6px] transition-colors ${showFavoritesOnly
+                            ? "bg-yellow-100 text-yellow-600"
+                            : "text-gray-400 hover:text-yellow-500 hover:bg-gray-50"
+                            }`}
+                        title={showFavoritesOnly ? "Hiển thị tất cả" : "Chỉ hiển thị các cặp đã đánh dấu"}
+                    >
+                        {showFavoritesOnly ? (
+                            <FaStar className="text-[16px]" />
+                        ) : (
+                            <CiStar className="text-[18px]" />
+                        )}
+                    </button>
+
+                    {/* Left Scroll Button */}
+                    {showLeftScroll && (
                         <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={`text-[14px] whitespace-nowrap pb-[8px] transition-colors ${activeTab === tab
-                                ? "text-black font-[500] border-b-2 border-[#FDDD5D]"
-                                : "text-gray-500 hover:text-gray-700"
-                                }`}
+                            onClick={() => scrollTabs("left")}
+                            className="flex items-center justify-center w-[24px] h-[32px] text-gray-400 hover:text-gray-600 transition-colors shrink-0"
+                            title="Cuộn sang trái"
                         >
-                            {tab}
+                            <IoChevronBack className="text-[16px]" />
                         </button>
-                    ))}
+                    )}
+
+                    {/* Tabs Container */}
+                    <div
+                        ref={tabsContainerRef}
+                        className="flex gap-[12px] overflow-x-auto overflow-y-hidden flex-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&::-webkit-scrollbar]:display-none"
+                        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                    >
+                        {tabs.map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`text-[14px] whitespace-nowrap transition-colors ${activeTab === tab
+                                    ? "text-black font-[500] border-b-2 border-[#FDDD5D]"
+                                    : "text-gray-500 hover:text-gray-700"
+                                    }`}
+                            >
+                                {tab}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Right Scroll Button */}
+                    {showRightScroll && (
+                        <button
+                            onClick={() => scrollTabs("right")}
+                            className="flex items-center justify-center w-[24px] h-[32px] text-gray-400 hover:text-gray-600 transition-colors shrink-0"
+                            title="Cuộn sang phải"
+                        >
+                            <IoChevronForward className="text-[16px]" />
+                        </button>
+                    )}
                 </div>
             </div>
 

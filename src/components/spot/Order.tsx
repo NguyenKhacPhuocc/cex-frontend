@@ -364,7 +364,7 @@ export default function Order() {
                             style={{
                                 background: `linear-gradient(to right, #2EBD85 0%, #2EBD85 ${buySlider}%, #e5e7eb ${buySlider}%, #e5e7eb 100%)`
                             }}
-                            className="w-full h-[4px] rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-[14px] [&::-webkit-slider-thumb]:h-[14px] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#2EBD85] [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-[14px] [&::-moz-range-thumb]:h-[14px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[#2EBD85] [&::-moz-range-thumb]:shadow-md"
+                            className="w-full h-[4px] rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-[14px] [&::-webkit-slider-thumb]:h-[14px] [&::-webkit-slider-thumb]:bg-[#2EBD85] [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#2EBD85] [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:rotate-45 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-[14px] [&::-moz-range-thumb]:h-[14px] [&::-moz-range-thumb]:bg-[#2EBD85] [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[#2EBD85] [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:rotate-45"
                         />
                         <div className="flex justify-between text-[10px] text-gray-400 mt-1">
                             <span>0%</span>
@@ -491,7 +491,7 @@ export default function Order() {
                             style={{
                                 background: `linear-gradient(to right, #F6465D 0%, #F6465D ${sellSlider}%, #e5e7eb ${sellSlider}%, #e5e7eb 100%)`
                             }}
-                            className="w-full h-[4px] rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-[14px] [&::-webkit-slider-thumb]:h-[14px] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#F6465D] [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-[14px] [&::-moz-range-thumb]:h-[14px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[#F6465D] [&::-moz-range-thumb]:shadow-md "
+                            className="w-full h-[4px] appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-[14px] [&::-webkit-slider-thumb]:h-[14px] [&::-webkit-slider-thumb]:bg-[#F6465D] [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#F6465D] [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:rotate-45 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-[14px] [&::-moz-range-thumb]:h-[14px] [&::-moz-range-thumb]:bg-[#F6465D] [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[#F6465D] [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:rotate-45"
                         />
                         <div className="flex justify-between text-[10px] text-gray-400 mt-1">
                             <span>0%</span>

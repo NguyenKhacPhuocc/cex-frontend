@@ -179,7 +179,7 @@ export default function OrderBook() {
                                 </>
                             ) : (
                                 <span className="text-[20px] font-medium text-gray-400">
-                                    --
+                                    0,00
                                 </span>
                             )}
                         </div>
