@@ -31,7 +31,7 @@ export default function SpotPage() {
             <Header />
             <SpotProvider symbol={symbol}>
                 <div className="flex gap-[4px] bg-[#F5F5F5] flex-col pb-[30px] p-[4px] mt-[64px]">
-                    <div className=" min-h-screen  flex gap-[4px]">
+                    <div className="max-h-[1030px] flex gap-[4px]">
                         <div className="flex-1 flex flex-col gap-[4px]">
                             <Ticker />
                             <div className="flex-1 flex gap-[4px]">

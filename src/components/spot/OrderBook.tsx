@@ -63,7 +63,7 @@ export default function OrderBook() {
     };
 
     return (
-        <div className="bg-white w-[30%] rounded-[8px] flex flex-col h-full">
+        <div className="bg-white w-[30%] rounded-[8px] flex flex-col">
             <div className=" px-[16px] py-[10px]  text-[14px] font-[500]  border-b border-[#F5F5F5]">Sổ lệnh</div>
 
             {/* Header */}

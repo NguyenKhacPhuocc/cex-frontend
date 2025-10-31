@@ -1,37 +1,43 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { CiStar } from "react-icons/ci";
 import { FaStar } from "react-icons/fa";
 import { IoSearchOutline } from "react-icons/io5";
 import { FaSort, FaSortUp, FaSortDown } from "react-icons/fa";
-
-// Mock data cho trading pairs
-const mockTradingPairs = [
-    { pair: "WBTC/BTC", leverage: "5x", price: 0.9999, change24h: -0.01, volume: 1234567, isFavorite: false },
-    { pair: "YFI/BTC", leverage: "5x", price: 0.04231, change24h: 0.40, volume: 9876543, isFavorite: false },
-    { pair: "ETH/BTC", leverage: "10x", price: 0.03599, change24h: -0.47, volume: 8765432, isFavorite: true },
-    { pair: "PAXG/BTC", leverage: "5x", price: 0.03414, change24h: -2.65, volume: 7654321, isFavorite: false },
-    { pair: "BNB/BTC", leverage: "10x", price: 0.009912, change24h: -1.19, volume: 6543210, isFavorite: false },
-    { pair: "BCH/BTC", leverage: "10x", price: 0.004850, change24h: -0.33, volume: 5432109, isFavorite: false },
-    { pair: "TAO/BTC", leverage: "", price: 0.003834, change24h: 9.98, volume: 4321098, isFavorite: false },
-    { pair: "ZEC/BTC", leverage: "10x", price: 0.0028629, change24h: -6.32, volume: 3210987, isFavorite: false },
-    { pair: "AAVE/BTC", leverage: "5x", price: 0.002070, change24h: -0.58, volume: 2109876, isFavorite: false },
-    { pair: "SOL/BTC", leverage: "5x", price: 0.0017752, change24h: 2.55, volume: 1098765, isFavorite: true },
-    { pair: "LTC/BTC", leverage: "10x", price: 0.000885, change24h: 2.79, volume: 987654, isFavorite: false },
-    { pair: "QNT/BTC", leverage: "5x", price: 0.0007172, change24h: -0.44, volume: 876543, isFavorite: false },
-    { pair: "DASH/BTC", leverage: "10x", price: 0.0004221, change24h: -4.09, volume: 765432, isFavorite: false },
-];
+import { useTradingPairs } from "@/hooks/useTradingPairs";
 
 type TabType = "ALL" | "FDUSD" | "BNB" | "BTC" | "ALTS" | "FIAT";
 type SortField = "pair" | "price" | "change24h" | null;
 type SortOrder = "asc" | "desc";
 
+// Favorite pairs stored in localStorage
+const FAVORITE_PAIRS_KEY = "favorite_trading_pairs";
+
+const getFavoritePairs = (): string[] => {
+    if (typeof window === "undefined") return [];
+    const stored = localStorage.getItem(FAVORITE_PAIRS_KEY);
+    return stored ? JSON.parse(stored) : [];
+};
+
+const saveFavoritePairs = (favorites: string[]): void => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(FAVORITE_PAIRS_KEY, JSON.stringify(favorites));
+};
+
 export default function TradingPairs() {
-    const [activeTab, setActiveTab] = useState<TabType>("BTC");
+    const router = useRouter();
+    const { tickers, isLoading } = useTradingPairs();
+    const [activeTab, setActiveTab] = useState<TabType>("ALL");
     const [searchTerm, setSearchTerm] = useState("");
-    const [pairs, setPairs] = useState(mockTradingPairs);
     const [sortField, setSortField] = useState<SortField>(null);
     const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+    const [favoritePairs, setFavoritePairs] = useState<string[]>([]);
+
+    // Load favorites from localStorage on mount
+    useEffect(() => {
+        setFavoritePairs(getFavoritePairs());
+    }, []);
 
     const formatNumber = (num: number, decimals: number) => {
         const parts = num.toFixed(decimals).split('.');
@@ -47,11 +53,59 @@ export default function TradingPairs() {
         return formatNumber(price, 7);
     };
 
-    const toggleFavorite = (index: number) => {
-        const newPairs = [...pairs];
-        newPairs[index].isFavorite = !newPairs[index].isFavorite;
-        setPairs(newPairs);
+    const toggleFavorite = (symbol: string) => {
+        setFavoritePairs((prev) => {
+            const newFavorites = prev.includes(symbol)
+                ? prev.filter((s) => s !== symbol)
+                : [...prev, symbol];
+            saveFavoritePairs(newFavorites);
+            return newFavorites;
+        });
     };
+
+    // Extract quote asset from pair (e.g., "BTC/USDT" -> "USDT")
+    const getQuoteAsset = (pair: string): string => {
+        const parts = pair.split("/");
+        return parts.length > 1 ? parts[1] : "";
+    };
+
+    // Filter tickers based on active tab
+    const filteredByTab = useMemo(() => {
+        if (activeTab === "ALL") return tickers;
+
+        return tickers.filter((ticker) => {
+            const quoteAsset = getQuoteAsset(ticker.pair);
+            switch (activeTab) {
+                case "BTC":
+                    return quoteAsset === "BTC";
+                case "BNB":
+                    return quoteAsset === "BNB";
+                case "FDUSD":
+                    return quoteAsset === "FDUSD";
+                case "FIAT":
+                    // FIAT currencies (USDT, USDC, etc.)
+                    return ["USDT", "USDC", "BUSD"].includes(quoteAsset);
+                case "ALTS":
+                    // Everything that's not BTC, BNB, FDUSD, or FIAT
+                    return !["BTC", "BNB", "FDUSD", "USDT", "USDC", "BUSD"].includes(quoteAsset);
+                default:
+                    return true;
+            }
+        });
+    }, [tickers, activeTab]);
+
+    // Transform tickers to display format with favorites
+    const pairsWithFavorites = useMemo(() => {
+        return filteredByTab.map((ticker) => ({
+            symbol: ticker.symbol,
+            pair: ticker.pair,
+            price: ticker.price,
+            change24h: ticker.change24h,
+            volume24h: ticker.volume24h,
+            leverage: "", // Not available in current data, can be added later
+            isFavorite: favoritePairs.includes(ticker.symbol),
+        }));
+    }, [filteredByTab, favoritePairs]);
 
     const handleSort = (field: SortField) => {
         if (sortField === field) {
@@ -75,7 +129,8 @@ export default function TradingPairs() {
         );
     };
 
-    let filteredPairs = pairs.filter((pair) =>
+    // Filter by search term
+    let filteredPairs = pairsWithFavorites.filter((pair) =>
         pair.pair.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -103,6 +158,10 @@ export default function TradingPairs() {
             }
         });
     }
+
+    const handlePairClick = (symbol: string) => {
+        router.push(`/spot/${symbol}`);
+    };
 
     const tabs: TabType[] = ["ALL", "FDUSD", "BNB", "BTC", "ALTS", "FIAT"];
 
@@ -177,57 +236,68 @@ export default function TradingPairs() {
 
             {/* Trading Pairs List */}
             <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-gray-400">
-                {filteredPairs.map((pair, index) => (
-                    <div
-                        key={index}
-                        className="px-[16px] pt-[8px] hover:bg-gray-50 cursor-pointer transition-colors"
-                    >
-                        <div className="grid grid-cols-[16px_1fr_70px_90px] gap-[6px] items-center text-[12px]">
-                            {/* Favorite Icon */}
-                            <div className="flex items-center justify-center">
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleFavorite(index);
-                                    }}
-                                    className="text-gray-400 hover:text-yellow-500 transition-colors"
-                                >
-                                    {pair.isFavorite ? (
-                                        <FaStar className="text-yellow-500 text-[14px]" />
-                                    ) : (
-                                        <CiStar className="text-[16px]" />
+                {isLoading ? (
+                    <div className="px-[16px] py-[20px] text-center text-gray-400 text-[14px]">
+                        Đang tải...
+                    </div>
+                ) : filteredPairs.length === 0 ? (
+                    <div className="px-[16px] py-[20px] text-center text-gray-400 text-[14px]">
+                        Không tìm thấy cặp giao dịch
+                    </div>
+                ) : (
+                    filteredPairs.map((pair) => (
+                        <div
+                            key={pair.symbol}
+                            onClick={() => handlePairClick(pair.symbol)}
+                            className="px-[16px] pt-[8px] hover:bg-gray-50 cursor-pointer transition-colors"
+                        >
+                            <div className="grid grid-cols-[16px_1fr_70px_90px] gap-[6px] items-center text-[12px]">
+                                {/* Favorite Icon */}
+                                <div className="flex items-center justify-center">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleFavorite(pair.symbol);
+                                        }}
+                                        className="text-gray-400 hover:text-yellow-500 transition-colors"
+                                    >
+                                        {pair.isFavorite ? (
+                                            <FaStar className="text-yellow-500 text-[14px]" />
+                                        ) : (
+                                            <CiStar className="text-[16px]" />
+                                        )}
+                                    </button>
+                                </div>
+
+                                {/* Pair Name */}
+                                <div className="flex items-center gap-[4px] min-w-0">
+                                    <span className="font-[500] text-black truncate">{pair.pair}</span>
+                                    {pair.leverage && (
+                                        <span className="text-[10px] bg-yellow-100 text-yellow-700 px-[4px] py-[1px] rounded shrink-0 whitespace-nowrap">
+                                            {pair.leverage}
+                                        </span>
                                     )}
-                                </button>
-                            </div>
+                                </div>
 
-                            {/* Pair Name */}
-                            <div className="flex items-center gap-[4px] min-w-0">
-                                <span className="font-[500] text-black truncate">{pair.pair}</span>
-                                {pair.leverage && (
-                                    <span className="text-[10px] bg-yellow-100 text-yellow-700 px-[4px] py-[1px] rounded shrink-0 whitespace-nowrap">
-                                        {pair.leverage}
+                                {/* Price */}
+                                <div className="text-right text-black tabular-nums text-[12px]">
+                                    {formatPrice(pair.price)}
+                                </div>
+
+                                {/* 24h Change */}
+                                <div className="text-right tabular-nums">
+                                    <span
+                                        className={`font-[500] ${pair.change24h >= 0 ? "text-green-500" : "text-red-500"
+                                            }`}
+                                    >
+                                        {pair.change24h >= 0 ? "+" : ""}
+                                        {pair.change24h.toFixed(2)}%
                                     </span>
-                                )}
-                            </div>
-
-                            {/* Price */}
-                            <div className="text-right text-black tabular-nums text-[12px]">
-                                {formatPrice(pair.price)}
-                            </div>
-
-                            {/* 24h Change */}
-                            <div className="text-right tabular-nums">
-                                <span
-                                    className={`font-[500] ${pair.change24h >= 0 ? "text-green-500" : "text-red-500"
-                                        }`}
-                                >
-                                    {pair.change24h >= 0 ? "+" : ""}
-                                    {pair.change24h.toFixed(2)}%
-                                </span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ))}
+                    ))
+                )}
             </div>
         </div>
     );
