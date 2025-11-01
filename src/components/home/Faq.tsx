@@ -36,12 +36,12 @@ const FaqItem = ({ faq }: any) => {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
-        <div className="border-b border-gray-200 min-w-[800px] ">
+        <div className="border-b border-gray-200 dark:border-gray-800 min-w-[800px] ">
             <button
-                className="flex justify-between items-center w-full text-lg font-medium text-left text-gray-900 hover:text-[#FCD535] py-6 "
+                className="flex justify-between items-center w-full text-lg font-medium text-left text-gray-900 hover:text-[#FCD535] py-6 dark:text-[#ffffff] "
                 onClick={() => setIsOpen(!isOpen)}
             >
-                <span>{faq.question}</span>
+                <span className=''>{faq.question}</span>
                 <motion.span
                     animate={{ rotate: isOpen ? 180 : 0 }}
                     transition={{ duration: 0.3 }}
@@ -56,7 +56,7 @@ const FaqItem = ({ faq }: any) => {
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.3, ease: 'easeInOut' }}
-                        className="mb-4 text-gray-600"
+                        className="mb-4 text-gray-600 dark:text-[#eaecef]"
                     >
                         {faq.answer}
                     </motion.div>
@@ -68,10 +68,10 @@ const FaqItem = ({ faq }: any) => {
 
 export default function Faq() {
     return (
-        <div className="bg-gray-50 min-h-screen flex items-center">
+        <div className="bg-gray-50 dark:bg-transparent min-h-screen flex items-center">
             <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
                 <div className="text-center">
-                    <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
+                    <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl dark:text-white/90">
                         Câu hỏi thường gặp
                     </h2>
                 </div>

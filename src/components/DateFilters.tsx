@@ -73,7 +73,7 @@ export default function DateFilters({ onDateRangeChange }: DateFiltersProps) {
     };
 
     return (
-        <div className="flex items-center gap-[8px] px-[16px] py-[12px] border-b border-[#F5F5F5] flex-wrap">
+        <div className="flex items-center gap-[8px] px-[16px] py-[12px] border-b border-[#F5F5F5] dark:border-[#373c43] flex-wrap">
             {["1 ngày", "1 Tuần", "1 Tháng", "3 Tháng", "Thời gian"].map((filter) => (
                 <button
                     key={filter}

@@ -48,6 +48,7 @@ export default function Chart({ chartData }: ChartProps) {
     const [activeMainTab, setActiveMainTab] = useState("chart");
     const [activeChartTab, setActiveChartTab] = useState("tradingview");
     const [timeframe, setTimeframe] = useState("1h");
+    const [isDarkMode, setIsDarkMode] = useState(false);
 
     // console.log('📈 Chart using symbol from Context:', { symbol, assetToken, baseToken });
 
@@ -93,6 +94,26 @@ export default function Chart({ chartData }: ChartProps) {
     const getTimeframes = () => {
         return activeChartTab === "tradingview" ? tradingViewTimeframes : originalTimeframes;
     };
+
+    // Detect dark mode
+    useEffect(() => {
+        const checkDarkMode = () => {
+            const isDark = document.documentElement.classList.contains("dark");
+            setIsDarkMode(isDark);
+        };
+
+        // Check on mount
+        checkDarkMode();
+
+        // Watch for changes
+        const observer = new MutationObserver(checkDarkMode);
+        observer.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ["class"],
+        });
+
+        return () => observer.disconnect();
+    }, []);
 
     // Init Chart gốc (lightweight-charts) - chỉ khi đang ở tab "original"
     useEffect(() => {
@@ -251,30 +272,23 @@ export default function Chart({ chartData }: ChartProps) {
                         symbol: `BINANCE:${symbol.replace("_", "")}`,
                         interval: interval,
                         timezone: "Etc/UTC",
-                        theme: "light",
+                        theme: isDarkMode ? "dark" : "light",
                         style: "1",
                         locale: "vi",
-                        toolbar_bg: '#ffffff',
                         enable_publishing: false,
-                        allow_symbol_change: true,
+                        allow_symbol_change: false,
                         container_id: "tradingview_widget",
-                        hide_side_toolbar: false,
-                        hide_top_toolbar: true,
+                        hide_side_toolbar: true,
+                        hide_top_toolbar: false,
                         withdateranges: false,
                         hide_legend: false,
-                        save_image: false,
+                        save_image: true,
+                        backgroundColor: isDarkMode ? "rgba(24, 26, 32, 1)" : "rgba(255, 255, 255, 1)",
+                        gridColor: "rgba(242, 242, 242, 0.06)",
                         studies: [
                             "MASimple@tv-basicstudies"
                         ],
-                        disabled_features: [
-                            "header_symbol_search",
-                            "header_screenshot",
-                            "header_compare",
-                            "header_widget",
-                            "timeframes_toolbar",
-                            "header_chart_type",
-                            "header_indicators",
-                        ],
+                        disabled_features: [],
                         enabled_features: [],
                     });
                 }
@@ -288,19 +302,19 @@ export default function Chart({ chartData }: ChartProps) {
                 }
             };
         }
-    }, [activeChartTab, symbol, timeframe]);
+    }, [activeChartTab, symbol, timeframe, isDarkMode]);
 
     return (
-        <div className="bg-white min-h-[525px] rounded-[8px] flex flex-col relative overflow-hidden">
+        <div className="bg-white dark:bg-[#181A20] min-h-[525px] rounded-[8px] flex flex-col relative overflow-hidden">
             {/* Main Tabs */}
-            <div className="h-[42px] border-b border-[#f0f0f0] flex items-center px-[16px] gap-[24px]">
+            <div className="h-[42px] border-b border-[#f0f0f0] dark:border-[#373c43] flex items-center px-[16px] gap-[24px]">
                 {mainTabs.map((tab) => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveMainTab(tab.id)}
                         className={`text-[14px] font-medium transition-colors relative py-[11px] ${activeMainTab === tab.id
-                            ? "text-black"
-                            : "text-[#9c9c9c] hover:text-black"
+                            ? "text-black dark:text-[#eaecef]"
+                            : "text-[#9c9c9c] hover:text-black dark:hover:dark:text-[#eaecef]"
                             }`}
                     >
                         {tab.label}
@@ -317,7 +331,7 @@ export default function Chart({ chartData }: ChartProps) {
                     {/* Original Chart */}
                     <div className={`flex-1 flex-col ${activeChartTab === "original" ? "flex" : "hidden"}`}>
                         {/* Timeframe Selector + Chart Sub-Tabs */}
-                        <div className="h-[36px] w-full border-b border-[#f0f0f0] flex items-center justify-between px-[12px]">
+                        <div className="h-[36px] w-full border-b border-[#f0f0f0] dark:border-[#373c43] flex items-center justify-between px-[12px]">
                             {/* Timeframes */}
                             <div className="flex items-center gap-[4px]">
                                 {getTimeframes().map((tf) => (
@@ -326,7 +340,7 @@ export default function Chart({ chartData }: ChartProps) {
                                         onClick={() => handleTimeframeChange(tf.value)}
                                         className={`px-[12px] py-[4px] text-[12px] rounded transition-colors ${timeframe === tf.value
                                             ? 'bg-[#FDDD5D] text-black'
-                                            : 'text-[#666] hover:bg-gray-50'
+                                            : 'text-[#666] dark:text-[#9c9c9c] hover:bg-gray-50 '
                                             }`}
                                     >
                                         {tf.label}
@@ -341,8 +355,8 @@ export default function Chart({ chartData }: ChartProps) {
                                         key={tab.id}
                                         onClick={() => setActiveChartTab(tab.id)}
                                         className={`text-[12px] px-[8px] py-[4px] rounded transition-colors ${activeChartTab === tab.id
-                                            ? " text-black font-medium"
-                                            : "text-[#9c9c9c] hover:bg-gray-50"
+                                            ? " text-black font-medium dark:text-[#eaecef]"
+                                            : "text-[#9c9c9c] hover:bg-gray-50 "
                                             }`}
                                     >
                                         {tab.label}
@@ -365,7 +379,7 @@ export default function Chart({ chartData }: ChartProps) {
                     {/* TradingView Chart */}
                     <div className={`flex-1 flex-col ${activeChartTab === "tradingview" ? "flex" : "hidden"}`}>
                         {/* Header for TradingView */}
-                        <div className="h-[36px] border-b border-[#f0f0f0] flex items-center justify-between px-[12px]">
+                        <div className="h-[36px] border-b border-[#f0f0f0] dark:border-[#373c43] flex items-center justify-between px-[12px]">
                             {/* Timeframes */}
                             <div className="flex items-center gap-[4px]">
                                 {getTimeframes().map((tf) => (
@@ -374,7 +388,7 @@ export default function Chart({ chartData }: ChartProps) {
                                         onClick={() => handleTimeframeChange(tf.value)}
                                         className={`px-[12px] py-[4px] text-[12px] rounded transition-colors ${timeframe === tf.value
                                             ? 'bg-[#FDDD5D] text-black'
-                                            : 'text-[#666] hover:bg-gray-50'
+                                            : 'text-[#666] dark:text-[#9c9c9c] hover:bg-gray-50'
                                             }`}
                                     >
                                         {tf.label}
@@ -387,7 +401,7 @@ export default function Chart({ chartData }: ChartProps) {
                                         key={tab.id}
                                         onClick={() => setActiveChartTab(tab.id)}
                                         className={`text-[12px] px-[8px] py-[4px] rounded transition-colors ${activeChartTab === tab.id
-                                            ? "text-black font-medium"
+                                            ? "text-black font-medium bg-[#FDDD5D]"
                                             : "text-[#9c9c9c] hover:bg-gray-50"
                                             }`}
                                     >
@@ -396,7 +410,7 @@ export default function Chart({ chartData }: ChartProps) {
                                 ))}
                             </div>
                         </div>
-                        <div className="flex-1" id="tradingview_widget" ref={tradingViewContainerRef} />
+                        <div className={`flex-1 ${isDarkMode ? 'bg-[#181A20]' : 'bg-white'}`} id="tradingview_widget" ref={tradingViewContainerRef} />
                     </div>
 
                     {/* Detail Tab */}

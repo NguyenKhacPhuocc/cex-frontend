@@ -58,14 +58,14 @@ export default function MarketTrades() {
     };
 
     return (
-        <div className="flex-1 bg-white rounded-[8px] flex flex-col">
+        <div className="flex-1 bg-white dark:bg-[#181A20] rounded-[8px] flex flex-col">
             {/* Tabs */}
-            <div className="px-[16px] pt-[12px] border-b border-gray-200">
+            <div className="px-[16px] pt-[12px] border-b border-gray-200 dark:border-[#373c43]">
                 <div className="flex gap-[24px]">
                     <button
                         onClick={() => setActiveTab("market")}
                         className={`text-[14px] pb-[12px] transition-colors ${activeTab === "market"
-                            ? "text-black font-medium border-b-2 border-[#FDDD5D]"
+                            ? "text-black font-medium border-b-2 border-[#FDDD5D] dark:text-[#eaecef]"
                             : "text-gray-500 hover:text-gray-700"
                             }`}
                     >
@@ -74,7 +74,7 @@ export default function MarketTrades() {
                     <button
                         onClick={() => setActiveTab("myTrades")}
                         className={`text-[14px] pb-[12px] transition-colors ${activeTab === "myTrades"
-                            ? "text-black font-medium border-b-2 border-[#FDDD5D]"
+                            ? "text-black font-medium border-b-2 border-[#FDDD5D] dark:text-[#eaecef]"
                             : "text-gray-500 hover:text-gray-700"
                             }`}
                     >
@@ -84,7 +84,7 @@ export default function MarketTrades() {
             </div>
 
             {/* Table Header */}
-            <div className="px-[16px] py-[8px] border-b border-gray-100">
+            <div className="px-[16px] py-[8px] border-b border-gray-100 dark:border-[#373c43]">
                 <div className="grid grid-cols-3 gap-[8px] text-[12px] text-gray-500">
                     <div>Giá (USDT)</div>
                     <div className="text-right">Số lượng (BTC)</div>
@@ -93,7 +93,7 @@ export default function MarketTrades() {
             </div>
 
             {/* Trades List */}
-            <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-gray-400  max-h-[420px]">
+            <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-gray-400  max-h-[420px]  mt-[4px]">
                 {activeTab === "market" ? (
                     marketLoading ? (
                         <div className="flex items-center justify-center h-full text-gray-400 text-[12px]">
@@ -103,16 +103,16 @@ export default function MarketTrades() {
                         marketTrades.map((trade) => (
                             <div
                                 key={trade.id}
-                                className="px-[16px] py-[4px] h-[20px] hover:bg-gray-50 transition-colors"
+                                className="px-[16px] py-[4px] h-[20px] hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center w-full"
                             >
-                                <div className="grid grid-cols-3 gap-[8px] text-[12px]">
-                                    <div className={`tabular-nums ${trade.side === "BUY" ? "text-green-500" : "text-red-500"}`}>
+                                <div className="grid grid-cols-3 gap-[8px] text-[12px] w-full">
+                                    <div className={`tabular-nums ${trade.side === "BUY" ? "text-[#2ebd85]" : "text-[#f6465d]"}`}>
                                         {formatNumber(trade.price, 2)}
                                     </div>
-                                    <div className="text-right text-gray-900 tabular-nums">
+                                    <div className="text-right text-gray-900 tabular-nums dark:text-[#eaecef]">
                                         {formatAmount(trade.amount)}
                                     </div>
-                                    <div className="text-right text-gray-600 tabular-nums">
+                                    <div className="text-right text-gray-600 tabular-nums dark:text-[#eaecef]">
                                         {formatTime(trade.timestamp)}
                                     </div>
                                 </div>
@@ -138,7 +138,7 @@ export default function MarketTrades() {
                             className="px-[16px] py-[4px] h-[20px] hover:bg-gray-50 transition-colors"
                         >
                             <div className="grid grid-cols-3 gap-[8px] text-[12px]">
-                                <div className={`tabular-nums ${trade.side === "BUY" ? "text-green-500" : "text-red-500"}`}>
+                                <div className={`tabular-nums ${trade.side === "BUY" ? "text-[#2ebd85]" : "text-[#f6465d]"}`}>
                                     {formatNumber(trade.price, 2)}
                                 </div>
                                 <div className="text-right text-gray-900 tabular-nums">

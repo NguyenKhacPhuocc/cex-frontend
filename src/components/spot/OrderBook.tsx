@@ -68,12 +68,12 @@ export default function OrderBook() {
     };
 
     return (
-        <div className="bg-white w-[30%] rounded-[8px] flex flex-col">
-            <div className=" px-[16px] py-[10px]  text-[14px] font-[500]  border-b border-[#F5F5F5]">Sổ lệnh</div>
+        <div className="bg-white dark:bg-[#181A20] w-[30%] rounded-[8px] flex flex-col">
+            <div className=" px-[16px] py-[10px]  text-[14px] font-[500]  border-b border-[#F5F5F5] dark:border-[#373c43] dark:text-[#eaecef]">Sổ lệnh</div>
 
             {/* Header */}
-            <div className="px-[12px] py-[8px]  border-gray-200">
-                <div className="flex justify-between items-center mb-[8px]">
+            <div className="px-[12px] py-[8px]  border-gray-200 dark:border-gray-700">
+                <div className="flex justify-between items-center mb-[4px]">
                     <div className="flex gap-[8px]">
                         <button
                             onClick={() => setViewMode("all")}
@@ -124,7 +124,7 @@ export default function OrderBook() {
                     <select
                         value={precision}
                         onChange={(e) => setPrecision(Number(e.target.value))}
-                        className="text-[12px] text-gray-600 border border-gray-300 rounded px-[8px] py-[2px]"
+                        className="text-[12px] text-gray-600 dark:text-[#eaecef] rounded px-[8px] py-[2px]"
                     >
                         <option value={0}>0</option>
                         <option value={1}>0.0</option>
@@ -132,8 +132,8 @@ export default function OrderBook() {
                     </select>
                 </div>
                 <div className="flex justify-between text-[12px] text-gray-500">
-                    <span className="flex-1">Giá(USDT)</span>
-                    <span className="flex-1 text-right">Số lượng(BTC)</span>
+                    <span className="flex-1">Giá (USDT)</span>
+                    <span className="flex-1 text-right">Số lượng (BTC)</span>
                     <span className="flex-1 text-right">Tổng</span>
                 </div>
             </div>
@@ -146,34 +146,34 @@ export default function OrderBook() {
                         {sortedAsks.slice().map((ask, index) => (
                             <div
                                 key={`ask-${index}`}
-                                className="group flex justify-between px-[12px] py-[2px] hover:bg-gray-50 relative"
+                                className="group flex justify-between px-[12px] py-[2px] hover:bg-gray-50 dark:hover:bg-gray-800 relative"
                             >
                                 <div
                                     className="absolute right-0 top-0 h-full bg-[#FBE9EB] dark:bg-[#2F1E26]"
                                     style={{ width: `${calculateWidth(ask.amount)}%` }}
                                 ></div>
-                                <span className="text-red-500 relative z-10 flex-1">{formatPrice(ask.price)}</span>
-                                <span className="text-gray-900 relative z-10 flex-1 text-right">{formatAmount(ask.amount)}</span>
-                                <span className="text-gray-600 relative z-10 flex-1 text-right">{formatTotal(ask.total)}</span>
-                                <div className="w-[50px] absolute top-0 right-0 bg-amber-50 group-hover:block hidden z-99 ">
+                                <span className="text-[#f6465d] relative z-10 flex-1">{formatPrice(ask.price)}</span>
+                                <span className="text-gray-900 relative z-10 flex-1 text-right dark:text-[#eaecef]">{formatAmount(ask.amount)}</span>
+                                <span className="text-gray-600 relative z-10 flex-1 text-right dark:text-[#eaecef]">{formatTotal(ask.total)}</span>
+                                {/* <div className="w-[50px] absolute top-0 right-0 bg-amber-50 group-hover:block hidden z-99 ">
                                     aaaaaa
-                                </div>
+                                </div> */}
                             </div>
                         ))}
                     </div>
                 )}
 
                 {/* Current Price - Last Trade Price */}
-                <div className="px-[12px] py-[8px] border-gray-200 bg-gray-50">
+                <div className="px-[12px] py-[8px] border-gray-200 bg-gray-50 dark:bg-[#181A20] ">
                     <div className="flex items-end gap-[4px]">
                         <div className="flex items-center">
                             {currentPrice > 0 ? (
                                 <>
-                                    <span className={`text-[20px] font-medium ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    <span className={`text-[20px] font-medium ${priceChange24h >= 0 ? 'text-[#2ebd85]' : 'text-[#f6465d]'}`}>
                                         {formatPrice(currentPrice)}
                                     </span>
                                     <IoIosArrowRoundUp
-                                        className={`text-[22px] ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}
+                                        className={`text-[22px] ${priceChange24h >= 0 ? 'text-[#2ebd85]' : 'text-[#f6465d]'}`}
                                         style={{ transform: priceChange24h < 0 ? 'rotate(180deg)' : 'none' }}
                                     />
                                 </>
@@ -183,7 +183,7 @@ export default function OrderBook() {
                                 </span>
                             )}
                         </div>
-                        <span className="text-[12px] text-gray-500 mb-[5px]">
+                        <span className="text-[12px] text-gray-500 mb-[5px] dark:text-[#707a8a]">
                             ${formatPrice(currentPrice)}
                         </span>
                     </div>
@@ -195,18 +195,18 @@ export default function OrderBook() {
                         {sortedBids.map((bid, index) => (
                             <div
                                 key={`bid-${index}`}
-                                className="group flex justify-between px-[12px] py-[2px] hover:bg-gray-50 relative"
+                                className="group flex justify-between px-[12px] py-[2px] hover:bg-gray-50 dark:hover:bg-gray-800 relative"
                             >
                                 <div
                                     className="absolute right-0 top-0 h-full bg-[#EAF8F2] dark:bg-[#1B2A2A]"
                                     style={{ width: `${calculateWidth(bid.amount)}%` }}
                                 ></div>
-                                <span className="text-green-500 relative z-10 flex-1">{formatPrice(bid.price)}</span>
-                                <span className="text-gray-900 relative z-10 flex-1 text-right">{formatAmount(bid.amount)}</span>
-                                <span className="text-gray-600 relative z-10 flex-1 text-right">{formatTotal(bid.total)}</span>
-                                <div className="w-[50px] absolute top-0 right-[-30px] bg-gray-400 group-hover:block hidden z-9999 ">
+                                <span className="text-[#2ebd85] relative z-10 flex-1">{formatPrice(bid.price)}</span>
+                                <span className="text-gray-900 relative z-10 flex-1 text-right dark:text-[#eaecef]">{formatAmount(bid.amount)}</span>
+                                <span className="text-gray-600 relative z-10 flex-1 text-right dark:text-[#eaecef]">{formatTotal(bid.total)}</span>
+                                {/* <div className="w-[50px] absolute top-0 right-[-30px] bg-gray-400 group-hover:block hidden z-9999 ">
                                     aaaaaa
-                                </div>
+                                </div> */}
                             </div>
                         ))}
                     </div>

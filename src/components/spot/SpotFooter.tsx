@@ -22,7 +22,7 @@ export default function SpotFooter() {
         <div className="fixed bottom-0 left-0 right-0 dark:bg-[#181A20] bg-white w-full overflow-hidden py-1 z-50 border-t-4 dark:border-[#0f1119] border-gray-100">
             <div className="flex gap-2 text-xs items-center justify-between dark:text-white text-black px-4">
                 <div
-                    className={`flex gap-2 items-center shrink-0 w-auto ${connected ? "text-green-500" : "text-gray-500"
+                    className={`flex gap-2 items-center shrink-0 w-auto ${connected ? "text-[#2ebd85]" : "text-gray-500"
                         }`}
                 >
                     <LuSignal />
@@ -38,8 +38,8 @@ export default function SpotFooter() {
                                     <span
                                         className={
                                             ticker.change.startsWith("+")
-                                                ? "text-green-500"
-                                                : "text-red-500"
+                                                ? "text-[#2ebd85]"
+                                                : "text-[#f6465d]"
                                         }
                                     >
                                         {ticker.change}

@@ -130,7 +130,7 @@ export default function PasswordStrengthIndicator({ password }: PasswordStrength
                 <ul className="text-xs text-gray-600 space-y-1 mt-2">
                     {strength.feedback.map((item, index) => (
                         <li key={index} className="flex items-start gap-1">
-                            <span className="text-red-500 mt-0.5">•</span>
+                            <span className="text-[#f6465d] mt-0.5">•</span>
                             <span>{item}</span>
                         </li>
                     ))}

@@ -170,7 +170,7 @@ export default function OpenOrders() {
     };
 
     const getOrderStatusColor = (status: string): string => {
-        switch (status) {
+        switch (status.toUpperCase()) {
             case 'OPEN':
                 return 'text-blue-600';
             case 'FILLED':
@@ -185,7 +185,7 @@ export default function OpenOrders() {
     };
 
     const getSideColor = (side: string): string => {
-        return side === 'BUY' || side === 'buy' ? 'text-green-500' : 'text-red-500';
+        return side === 'BUY' || side === 'buy' ? 'text-[#2ebd85]' : 'text-[#f6465d]';
     };
 
     // Update underline position khi activeTab thay đổi
@@ -201,9 +201,9 @@ export default function OpenOrders() {
     }, [activeTab]);
 
     return (
-        <div className="min-h-[560px] bg-white rounded-[8px] flex flex-col">
+        <div className="min-h-[560px] bg-white dark:bg-[#181A20] rounded-[8px] flex flex-col">
             {/* Tabs */}
-            <div className="flex items-center justify-between px-[16px] border-b border-[#F5F5F5]">
+            <div className="flex items-center justify-between px-[16px] border-b border-[#F5F5F5] dark:border-[#373c43]">
                 <div className="flex items-center gap-[24px] h-[42px] relative">
                     {tabs.map((tab) => (
                         <button
@@ -214,11 +214,11 @@ export default function OpenOrders() {
                             onClick={() => setActiveTab(tab.id)}
                             className={`py-[12px] text-[14px] font-medium transition-colors ${activeTab === tab.id
                                 ? "text-[#F0B90B]"
-                                : "text-[#9c9c9c] hover:text-black"
+                                : "text-[#9c9c9c] hover:text-black dark:hover:text-[#eaecef]"
                                 }`}
                         >
                             {tab.label}
-                            {tab.count !== null && `(${tab.count})`}
+                            {tab.count !== null && ` (${tab.count})`}
                         </button>
                     ))}
                     {/* Animated Underline */}
@@ -232,12 +232,12 @@ export default function OpenOrders() {
                 </div>
 
                 {isLogin && activeTab === "orders" && (
-                    <label className="flex items-center gap-[8px] text-[12px] font-medium cursor-pointer">
+                    <label className="flex items-center gap-[8px] text-[12px] font-medium cursor-pointer dark:text-[#eaecef]">
                         <input
                             type="checkbox"
                             checked={hideOtherPairs}
                             onChange={(e) => setHideOtherPairs(e.target.checked)}
-                            className="w-[16px] h-[16px] cursor-pointer"
+                            className="w-[16px] h-[16px] cursor-pointer "
                         />
                         Ẩn các cặp tỉ giá khác
                     </label>
@@ -339,7 +339,7 @@ export default function OpenOrders() {
                                             </tr>
                                         ) : (
                                             filteredOpenOrders.map((order) => (
-                                                <tr key={order.id} className="border-t border-[#F5F5F5] hover:bg-gray-50">
+                                                <tr key={order.id} className="border-t border-[#F5F5F5] dark:border-[#373c43] hover:bg-gray-50 dark:text-[#eaecef]">
                                                     <td className="px-[12px] py-[12px] text-[12px]">{formatTime(order.createdAt)}</td>
                                                     <td className="px-[12px] py-[12px] text-[12px]">{order.market.symbol.replace('_', '/')}</td>
                                                     <td className="px-[12px] py-[12px] text-[12px]">{order.type}</td>
@@ -377,7 +377,7 @@ export default function OpenOrders() {
                                             filteredOrderHistory.map((order) => {
                                                 const avgPrice = order.filled > 0 ? (order.price || 0) : 0;
                                                 return (
-                                                    <tr key={order.id} className="border-t border-[#F5F5F5] hover:bg-gray-50">
+                                                    <tr key={order.id} className="border-t border-[#F5F5F5] dark:border-[#373c43] dark:text-[#eaecef] hover:bg-gray-50">
                                                         <td className="px-[12px] py-[12px] text-[12px]">{formatDate(order.createdAt)}</td>
                                                         <td className="px-[12px] py-[12px] text-[12px]">{order.market.symbol.replace('_', '/')}</td>
                                                         <td className="px-[12px] py-[12px] text-[12px]">{order.type}</td>
@@ -391,7 +391,7 @@ export default function OpenOrders() {
                                                         <td className="px-[12px] py-[12px] text-[12px]">--</td>
                                                         <td className="px-[12px] py-[12px] text-[12px]">--</td>
                                                         <td className="px-[12px] py-[12px] text-[12px]">--</td>
-                                                        <td className={`px-[12px] py-[12px] text-[12px] ${getOrderStatusColor(order.status)}`}>{order.status}</td>
+                                                        <td className={`px-[12px] py-[12px] text-[12px]  ${getOrderStatusColor(order.status)}`}>{order.status}</td>
                                                     </tr>
                                                 );
                                             })
@@ -416,7 +416,7 @@ export default function OpenOrders() {
                                             </tr>
                                         ) : (
                                             filteredTradeHistory.map((trade) => (
-                                                <tr key={trade.id} className="border-t border-[#F5F5F5] hover:bg-gray-50">
+                                                <tr key={trade.id} className="border-t border-[#F5F5F5] hover:bg-gray-50 dark:border-[#373c43] dark:text-[#eaecef]">
                                                     <td className="px-[12px] py-[12px] text-[12px]">{trade.id}</td>
                                                     <td className="px-[12px] py-[12px] text-[12px]">{formatTime(trade.timestamp)}</td>
                                                     <td className="px-[12px] py-[12px] text-[12px]">{trade.market.replace('_', '/')}</td>

@@ -28,9 +28,11 @@ export default function SpotPage() {
 
     return (
         <>
-            <Header />
+            <div className="dark:bg-[#181A20]">
+                <Header />
+            </div>
             <SpotProvider symbol={symbol}>
-                <div className="flex gap-[4px] bg-[#F5F5F5] flex-col pb-[30px] p-[4px] mt-[64px]">
+                <div className="flex gap-[4px] bg-[#F5F5F5] dark:bg-[#0B0E11] flex-col pb-[30px] p-[4px]">
                     <div className="max-h-[1030px] flex gap-[4px]">
                         <div className="flex-1 flex flex-col gap-[4px]">
                             <Ticker />

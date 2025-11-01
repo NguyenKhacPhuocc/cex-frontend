@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Custom Scrollbar - Binance Style */
 html {
     scroll-behavior: smooth;
@@ -77,3 +79,4 @@ body {
 .animate-scroll {
     animation: scroll 30s linear infinite;
 }
+

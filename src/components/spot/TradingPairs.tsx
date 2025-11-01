@@ -209,7 +209,7 @@ export default function TradingPairs() {
     const tabs: TabType[] = ["ALL", "USDT", "ETH", "BNB", "BTC", "ALTS", "FIAT"];
 
     return (
-        <div className="flex-1 bg-white rounded-[8px] flex flex-col">
+        <div className="flex-1 bg-white dark:bg-[#181A20] rounded-[8px] flex flex-col">
             {/* Search */}
             <div className="px-[16px] pt-[12px] pb-[8px]">
                 <div className="relative">
@@ -219,13 +219,13 @@ export default function TradingPairs() {
                         placeholder="Tìm"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-[36px] pr-[12px] py-[8px] h-[32px] border border-gray-300 rounded-[8px] text-[14px] focus:outline-none focus:border-gray-400"
+                        className="w-full pl-[36px] pr-[12px] py-[8px] h-[32px] border border-gray-300 rounded-[8px] text-[14px] focus:outline-none focus:border-gray-400 dark:border-[#929aa5] dark:text-[#eaecef]"
                     />
                 </div>
             </div>
 
             {/* Tabs */}
-            <div className="px-[16px] border-b border-gray-200">
+            <div className="px-[16px] border-b border-gray-200 dark:border-[#373c43]">
                 <div className="flex items-center gap-[4px] relative justify-center">
                     {/* Favorite Filter Button */}
                     <button
@@ -264,9 +264,9 @@ export default function TradingPairs() {
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
-                                className={`text-[14px] whitespace-nowrap transition-colors ${activeTab === tab
-                                    ? "text-black font-[500] border-b-2 border-[#FDDD5D]"
-                                    : "text-gray-500 hover:text-gray-700"
+                                className={`text-[14px] whitespace-nowrap transition-colors  font-[500] ${activeTab === tab
+                                    ? "text-black dark:text-[#eaecef] border-b-2 border-[#FDDD5D]"
+                                    : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                                     }`}
                             >
                                 {tab}
@@ -288,7 +288,7 @@ export default function TradingPairs() {
             </div>
 
             {/* Table Header */}
-            <div className="px-[16px] pt-[8px] pb-[6px] border-b border-gray-100">
+            <div className="px-[16px] pt-[8px] pb-[6px] border-b border-gray-100 dark:border-[#373c43]">
                 <div className="grid grid-cols-[16px_1fr_80px_90px] gap-[6px] items-center text-[12px] text-gray-500">
                     {/* Icon Column */}
                     <div></div>
@@ -299,7 +299,7 @@ export default function TradingPairs() {
                         className="flex items-center gap-[4px] hover:text-gray-700 transition-colors min-w-0"
                     >
                         <span className="truncate">Cặp</span>
-                        <span className="shrink-0 text-[10px]">{getSortIcon("pair")}</span>
+                        <span className="shrink-0 text-[10px] ">{getSortIcon("pair")}</span>
                     </button>
 
                     {/* Price Column */}
@@ -347,10 +347,10 @@ export default function TradingPairs() {
                                             e.stopPropagation();
                                             toggleFavorite(pair.symbol);
                                         }}
-                                        className="text-gray-400 hover:text-yellow-500 transition-colors"
+                                        className="text-gray-400 hover:text-[#F0B90B] transition-colors"
                                     >
                                         {pair.isFavorite ? (
-                                            <FaStar className="text-yellow-500 text-[14px]" />
+                                            <FaStar className="text-[#F0B90B] text-[14px]" />
                                         ) : (
                                             <CiStar className="text-[16px]" />
                                         )}
@@ -359,7 +359,7 @@ export default function TradingPairs() {
 
                                 {/* Pair Name */}
                                 <div className="flex items-center gap-[4px] min-w-0">
-                                    <span className="font-[500] text-black truncate">{pair.pair}</span>
+                                    <span className="font-[500] text-black truncate dark:text-[#eaecef]">{pair.pair}</span>
                                     {pair.leverage && (
                                         <span className="text-[10px] bg-yellow-100 text-yellow-700 px-[4px] py-[1px] rounded shrink-0 whitespace-nowrap">
                                             {pair.leverage}
@@ -368,14 +368,14 @@ export default function TradingPairs() {
                                 </div>
 
                                 {/* Price */}
-                                <div className="text-right text-black tabular-nums text-[12px]">
+                                <div className="text-right text-black tabular-nums text-[12px] dark:text-[#eaecef]">
                                     {formatPrice(pair.price)}
                                 </div>
 
                                 {/* 24h Change */}
                                 <div className="text-right tabular-nums">
                                     <span
-                                        className={`font-[500] ${pair.change24h >= 0 ? "text-green-500" : "text-red-500"
+                                        className={`font-[500] ${pair.change24h >= 0 ? "text-[#2ebd85]" : "text-[#f6465d]"
                                             }`}
                                     >
                                         {pair.change24h >= 0 ? "+" : ""}

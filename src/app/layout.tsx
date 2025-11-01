@@ -60,7 +60,7 @@ export default function RootLayout({
                 <QueryProvider>
                     <WebSocketProvider>
                         <ScrollToTop />
-                        <div className="max-w-[1920px] mx-auto">
+                        <div className="max-w-[1920px] mx-auto dark:bg-top-right">
                             {children}
                         </div>
                     </WebSocketProvider>

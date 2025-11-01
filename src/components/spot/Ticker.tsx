@@ -3,13 +3,29 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CiStar } from "react-icons/ci";
+import { FaStar } from "react-icons/fa";
 import { LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import { MdOutlineArrowOutward } from "react-icons/md";
 import { useSpot } from "@/contexts/SpotContext";
 import { useTicker } from "@/hooks/useTicker";
 
+// Favorite pairs stored in localStorage
+const FAVORITE_PAIRS_KEY = "favorite_trading_pairs";
+
+const getFavoritePairs = (): string[] => {
+    if (typeof window === "undefined") return [];
+    const stored = localStorage.getItem(FAVORITE_PAIRS_KEY);
+    return stored ? JSON.parse(stored) : [];
+};
+
+const saveFavoritePairs = (favorites: string[]): void => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(FAVORITE_PAIRS_KEY, JSON.stringify(favorites));
+};
+
 export default function Ticker() {
     const { symbol: pair, assetToken, baseToken } = useSpot();
+    const [favoritePairs, setFavoritePairs] = useState<string[]>([]);
 
     const { ticker, isLoading: isLoadingTicker } = useTicker(pair);
 
@@ -21,6 +37,27 @@ export default function Ticker() {
     const baseAssetCode = useMemo(() => {
         return assetToken.toUpperCase();
     }, [assetToken]);
+
+    // Load favorites from localStorage on mount
+    useEffect(() => {
+        setFavoritePairs(getFavoritePairs());
+    }, []);
+
+    // Check if current pair is favorite
+    const isFavorite = useMemo(() => {
+        return favoritePairs.includes(pair);
+    }, [favoritePairs, pair]);
+
+    // Toggle favorite
+    const toggleFavorite = () => {
+        setFavoritePairs((prev) => {
+            const newFavorites = prev.includes(pair)
+                ? prev.filter((p) => p !== pair)
+                : [...prev, pair];
+            saveFavoritePairs(newFavorites);
+            return newFavorites;
+        });
+    };
 
     // Format number với dấu chấm cho hàng nghìn, dấu phẩy cho thập phân (format Việt Nam)
     const formatNumber = (num: number | undefined, decimals: number): string => {
@@ -123,19 +160,23 @@ export default function Ticker() {
 
     return (
         <>
-            <div className="h-[56px] bg-white rounded-[8px] flex px-[16px]">
+            <div className="h-[56px] bg-white dark:bg-[#181A20] rounded-[8px] flex px-[16px] py-[4px]">
                 <div className="w-[280px] flex gap-[8px] text-[#9c9c9c]">
-                    <div className="flex justify-center items-center mr-[4px] ">
-                        <CiStar className="text-[24px] border rounded-[8px] border-gray-200" />
+                    <div className="flex justify-center items-center cursor-pointer" onClick={toggleFavorite}>
+                        {isFavorite ? (
+                            <FaStar className="text-[24px] p-1 text-[#F0B90B] rounded-[8px] border-gray-200 border dark:border-gray-700" />
+                        ) : (
+                            <CiStar className="text-[24px] rounded-[8px] border-gray-200 border dark:border-gray-700 dark:text-gray-700" />
+                        )}
                     </div>
                     <div className="flex justify-center items-center gap-[8px]">
                         <div className=" rounded-full overflow-hidden">
                             <Image src={`/${baseAssetCode}.png`} alt={symbol} width={24} height={24} />
                         </div>
                         <div className="pr-[8px]">
-                            <div className="text-[20px] leading-[20px] text-black font-medium">{pairDisplay}</div>
+                            <div className="text-[20px] leading-[20px] text-black font-medium dark:text-[#eaecef]">{pairDisplay}</div>
                             <div className="text-[12px] text-[#9c9c9c] flex gap-[4px] items-center">
-                                <Link href={`/price/${baseAssetCode}`} className="font-[400] text-[#9c9c9c]">
+                                <Link href={`/price/${baseAssetCode}`} className="font-[400] text-[#9c9c9c] dark:text-[#707a8a]">
                                     Giá {baseAssetCode}
                                 </Link>
                                 <MdOutlineArrowOutward className="text-[6px]" />
@@ -153,7 +194,7 @@ export default function Ticker() {
                                 <div className={`text-[20px] ${priceColor} font-medium leading-[20px]`}>
                                     {formatPrice(currentPrice)}
                                 </div>
-                                <div className="text-[12px] text-black">
+                                <div className="text-[12px] text-black dark:text-[#eaecef]">
                                     $ {formatPrice(currentPrice)}
                                 </div>
                             </>
@@ -166,7 +207,7 @@ export default function Ticker() {
                         className={`absolute left-0 flex items-center justify-center w-6 h-8 rounded z-30 transition-opacity duration-200
     ${canScrollLeft ? "opacity-100" : "opacity-0 pointer-events-none"}`}
                     >
-                        <LuChevronLeft className="text-gray-400 hover:text-black" />
+                        <LuChevronLeft className="text-gray-400 hover:text-black dark:hover:text-[#eaecef]" />
                     </button>
                     {/* Left Fade Gradient */}
                     <div
@@ -201,7 +242,7 @@ export default function Ticker() {
                                 {isLoadingTicker ? (
                                     <div className="text-gray-400">--</div>
                                 ) : (
-                                    <div className="">{formatPrice(high24h)}</div>
+                                    <div className="dark:text-[#eaecef]">{formatPrice(high24h)}</div>
                                 )}
                             </div>
                             <div className="flex  flex-col justify-center">
@@ -209,7 +250,7 @@ export default function Ticker() {
                                 {isLoadingTicker ? (
                                     <div className="text-gray-400">--</div>
                                 ) : (
-                                    <div className="">{formatPrice(low24h)}</div>
+                                    <div className="dark:text-[#eaecef]">{formatPrice(low24h)}</div>
                                 )}
                             </div>
                             <div className="flex  flex-col justify-center">
@@ -217,7 +258,7 @@ export default function Ticker() {
                                 {isLoadingTicker ? (
                                     <div className="text-gray-400">--</div>
                                 ) : (
-                                    <div className="">{formatVolume(volume24hBTC)}</div>
+                                    <div className="dark:text-[#eaecef]">{formatVolume(volume24hBTC)}</div>
                                 )}
                             </div>
                             <div className="flex  flex-col justify-center">
@@ -225,13 +266,13 @@ export default function Ticker() {
                                 {isLoadingTicker ? (
                                     <div className="text-gray-400">--</div>
                                 ) : (
-                                    <div className="">{formatVolume(volume24hUSDT)}</div>
+                                    <div className="dark:text-[#eaecef]">{formatVolume(volume24hUSDT)}</div>
                                 )}
                             </div>
                             <div className="flex flex-col justify-center">
                                 <div className="text-[#9c9c9c] whitespace-nowrap mb-[2px]">Mạng lưới</div>
                                 <hr className="border border-t-0 border-dashed border-[#9c9c9c] " />
-                                <div>BTC (5)</div>
+                                <div className="dark:text-[#eaecef]">BTC (5)</div>
                             </div>
                         </div>
                         <div className="flex flex-col justify-center text-[12px] w-[200px] shrink-0">
@@ -255,7 +296,7 @@ export default function Ticker() {
                         className={`absolute right-0 flex items-center justify-center w-6 h-8 rounded z-30 transition-opacity duration-200
     ${canScrollRight ? "opacity-100" : "opacity-0 pointer-events-none"}`}
                     >
-                        <LuChevronRight className="text-gray-400 hover:text-black" />
+                        <LuChevronRight className="text-gray-400 hover:text-black dark:hover:text-[#eaecef]" />
                     </button>
                 </div>
             </div>

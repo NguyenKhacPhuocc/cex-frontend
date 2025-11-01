@@ -269,16 +269,16 @@ export default function Order() {
     };
 
     return (
-        <div className="bg-white min-h-[350px] rounded-[8px] flex flex-col">
+        <div className="bg-white dark:bg-[#181A20] min-h-[350px] rounded-[8px] flex flex-col">
             {/* Main Tabs */}
-            <div className="px-[16px] border-b border-gray-200">
+            <div className="px-[16px] border-b border-gray-200 dark:border-[#373c43]">
                 <div className="flex gap-[24px]">
                     {mainTabs.map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => setMainTab(tab.id)}
-                            className={`text-[14px] font-medium pb-[6px] pt-[12px] transition-colors ${mainTab === tab.id
-                                ? "text-black border-b-2 border-[#FDDD5D]"
+                            className={`text-[14px] font-[500] pb-[6px] pt-[12px] transition-colors ${mainTab === tab.id
+                                ? "text-black border-b-2 border-[#FDDD5D] dark:text-[#eaecef]"
                                 : "text-gray-500 hover:text-gray-700"
                                 }`}
                         >
@@ -289,14 +289,14 @@ export default function Order() {
             </div>
 
             {/* Order Type Tabs */}
-            <div className="px-[16px] pt-[12px] border-b border-gray-100">
+            <div className="px-[16px] pt-[12px] border-b border-gray-100 dark:border-[#373c43]">
                 <div className="flex gap-[16px]">
                     {orderTabs.map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => setOrderTab(tab.id)}
                             className={`text-[14px] font-medium pb-[8px] transition-colors ${orderTab === tab.id
-                                ? "text-black"
+                                ? "text-black border-b-2 dark:text-[#eaecef] border-[#FDDD5D]"
                                 : "text-gray-500 hover:text-gray-700"
                                 }`}
                         >
@@ -315,7 +315,7 @@ export default function Order() {
                 <div className="flex flex-col gap-[12px]">
                     {/* Price Input */}
                     <div>
-                        <div className="relative">
+                        <div className="relative font-[500]">
                             <span className="absolute left-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-400">
                                 Giá
                             </span>
@@ -325,7 +325,7 @@ export default function Order() {
                                 value={orderTab === 'market' ? 'Giá thị trường' : buyPrice}
                                 onChange={(e) => setBuyPrice(e.target.value)}
                                 disabled={orderTab === 'market'}
-                                className={`w-full px-[12px] py-[8px] pr-[50px] text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none focus:border-gray-400 text-right ${orderTab === 'market' ? 'bg-gray-300 cursor-not-allowed text-gray-500' : ''}`}
+                                className={`w-full px-[12px] py-[8px] pr-[50px] text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none focus:border-gray-400 dark:border-[#373c43] dark:text-[#eaecef] text-right ${orderTab === 'market' ? 'bg-gray-300 cursor-not-allowed text-gray-500' : ''}`}
                             />
                             <span className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
                                 {baseToken}
@@ -335,7 +335,7 @@ export default function Order() {
 
                     {/* Amount Input */}
                     <div>
-                        <div className="relative">
+                        <div className="relative font-[500]">
                             <span className="absolute left-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-400">
                                 Số lượng
                             </span>
@@ -345,7 +345,7 @@ export default function Order() {
                                 min={0}
                                 value={buyAmount}
                                 onChange={(e) => setBuyAmount(e.target.value)}
-                                className="w-full px-[12px] py-[8px] pr-[50px] text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none focus:border-gray-400 text-right"
+                                className="w-full px-[12px] py-[8px] pr-[50px] dark:border-[#373c43] dark:text-[#eaecef] text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none focus:border-gray-400 text-right"
                             />
                             <span className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
                                 {assetToken}
@@ -378,7 +378,7 @@ export default function Order() {
                     {/* Total Input - Hidden for Market orders */}
                     {orderTab !== 'market' && (
                         <div>
-                            <div className="relative">
+                            <div className="relative font-[500]">
                                 <span className="absolute left-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-400">
                                     Tổng
                                 </span>
@@ -386,7 +386,7 @@ export default function Order() {
                                     type="text"
                                     value={buyTotal}
                                     readOnly
-                                    className="w-full px-[12px] py-[8px] pr-[50px] text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none bg-gray-50 text-right cursor-not-allowed"
+                                    className="w-full px-[12px] py-[8px] pr-[50px] dark:border-[#373c43] dark:text-[#eaecef] text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none bg-gray-50 text-right cursor-not-allowed dark:bg-transparent"
                                 />
                                 <span className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
                                     {baseToken}
@@ -404,7 +404,7 @@ export default function Order() {
                             onChange={(e) => setBuyTpSl(e.target.checked)}
                             className="w-[16px] h-[16px]"
                         />
-                        <label htmlFor="buy-tpsl" className="text-[12px] text-gray-700">
+                        <label htmlFor="buy-tpsl" className="text-[12px] text-gray-700 dark:text-[#eaecef]">
                             {orderTab === 'market' ? 'Khả năng chống trượt giá' : 'TP/SL'}
                         </label>
                     </div>
@@ -413,14 +413,14 @@ export default function Order() {
                         {/* Available Balance */}
                         <div className="flex justify-between text-[12px]">
                             <span className="text-gray-500">Khả dụng</span>
-                            <span className="text-gray-900">{getBalance(baseToken)} {baseToken}</span>
+                            <span className="text-gray-900 dark:text-[#eaecef]">{getBalance(baseToken)} {baseToken}</span>
                         </div>
 
                         {/* Max Buy */}
                         <div>
                             <div className="flex justify-between text-[12px]">
                                 <span className="text-gray-500">Mua tối đa</span>
-                                <span className="text-gray-900">{getMaxBuyAmount()} {assetToken}</span>
+                                <span className="text-gray-900 dark:text-[#eaecef]">{getMaxBuyAmount()} {assetToken}</span>
                             </div>
                         </div>
                     </div>
@@ -442,7 +442,7 @@ export default function Order() {
                 <div className="flex flex-col gap-[12px]">
                     {/* Price Input */}
                     <div>
-                        <div className="relative">
+                        <div className="relative font-[500]">
                             <span className="absolute left-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-400">
                                 Giá
                             </span>
@@ -452,7 +452,7 @@ export default function Order() {
                                 value={orderTab === 'market' ? 'Giá thị trường' : sellPrice}
                                 onChange={(e) => setSellPrice(e.target.value)}
                                 disabled={orderTab === 'market'}
-                                className={`w-full px-[12px] py-[8px] pr-[50px] text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none focus:border-gray-400 text-right ${orderTab === 'market' ? 'bg-gray-300 cursor-not-allowed text-gray-500' : ''}`}
+                                className={`w-full px-[12px] py-[8px] pr-[50px] dark:border-[#373c43] dark:text-[#eaecef]  text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none focus:border-gray-400 text-right ${orderTab === 'market' ? 'bg-gray-300 cursor-not-allowed text-gray-500' : ''}`}
                             />
                             <span className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
                                 {baseToken}
@@ -462,7 +462,7 @@ export default function Order() {
 
                     {/* Amount Input */}
                     <div>
-                        <div className="relative">
+                        <div className="relative font-[500]">
                             <span className="absolute left-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-400">
                                 Số lượng
                             </span>
@@ -472,7 +472,7 @@ export default function Order() {
                                 min={0}
                                 value={sellAmount}
                                 onChange={(e) => setSellAmount(e.target.value)}
-                                className="w-full px-[12px] py-[8px] pr-[50px] text-[14px] border border-gray-300 rounded-[8px] focus:outline-none focus:border-gray-400 text-right"
+                                className="w-full px-[12px] py-[8px] dark:border-[#373c43] dark:text-[#eaecef]  pr-[50px] text-[14px] border border-gray-300 rounded-[8px] focus:outline-none focus:border-gray-400 text-right"
                             />
                             <span className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
                                 {assetToken}
@@ -513,7 +513,7 @@ export default function Order() {
                                     type="text"
                                     value={sellTotal}
                                     readOnly
-                                    className="w-full px-[12px] py-[8px] pr-[50px] text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none bg-gray-50 text-right cursor-not-allowed"
+                                    className="w-full px-[12px] py-[8px] pr-[50px] text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none bg-gray-50 text-right cursor-not-allowed dark:bg-transparent dark:border-[#373c43] dark:text-[#eaecef] "
                                 />
                                 <span className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
                                     {baseToken}
@@ -531,7 +531,7 @@ export default function Order() {
                             onChange={(e) => setSellTpSl(e.target.checked)}
                             className="w-[16px] h-[16px]"
                         />
-                        <label htmlFor="sell-tpsl" className="text-[12px] text-gray-700">
+                        <label htmlFor="sell-tpsl" className="text-[12px] text-gray-700 dark:text-[#eaecef]">
                             {orderTab === 'market' ? 'Khả năng chống trượt giá' : 'TP/SL'}
                         </label>
                     </div>
@@ -540,14 +540,14 @@ export default function Order() {
                         {/* Available Balance */}
                         <div className="flex justify-between text-[12px]">
                             <span className="text-gray-500">Khả dụng</span>
-                            <span className="text-gray-900">{getBalance(assetToken)} {assetToken}</span>
+                            <span className="text-gray-900 dark:text-[#eaecef]">{getBalance(assetToken)} {assetToken}</span>
                         </div>
 
                         {/* Max Sell Total */}
                         <div>
                             <div className="flex justify-between text-[12px]">
                                 <span className="text-gray-500">Bán tối đa</span>
-                                <span className="text-gray-900">{getMaxSellTotal()} {baseToken}</span>
+                                <span className="text-gray-900 dark:text-[#eaecef]">{getMaxSellTotal()} {baseToken}</span>
                             </div>
                         </div>
                     </div>
