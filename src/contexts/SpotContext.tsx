@@ -1,5 +1,6 @@
 "use client";
-import { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext, ReactNode, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface SpotContextType {
     symbol: string;
@@ -15,13 +16,57 @@ interface SpotProviderProps {
 }
 
 export function SpotProvider({ children, symbol }: SpotProviderProps) {
+    const router = useRouter();
+
     // Parse symbol: BTC_USDT → assetToken: BTC, baseToken: USDT
-    const [assetToken, baseToken] = symbol.split('_');
+    // Also support BTCUSDT format (no underscore) by splitting at last 4 chars (USDT, BTC, etc.)
+    const { assetToken, baseToken } = useMemo(() => {
+        let parsedAssetToken = '';
+        let parsedBaseToken = '';
+
+        if (symbol.includes('_')) {
+            // Format: BTC_USDT
+            const parts = symbol.split('_');
+            parsedAssetToken = parts[0] || '';
+            parsedBaseToken = parts[1] || '';
+        } else {
+            // Format: BTCUSDT - try to split at common base tokens
+            const commonBases = ['USDT', 'USDC', 'BTC', 'ETH', 'BNB', 'FDUSD'];
+            let found = false;
+            for (const base of commonBases) {
+                if (symbol.endsWith(base)) {
+                    parsedAssetToken = symbol.slice(0, -base.length);
+                    parsedBaseToken = base;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                // Fallback: split at last 4 characters
+                parsedAssetToken = symbol.slice(0, -4);
+                parsedBaseToken = symbol.slice(-4);
+            }
+        }
+
+        return {
+            assetToken: parsedAssetToken,
+            baseToken: parsedBaseToken,
+        };
+    }, [symbol]);
+
+    // Validate symbol format
+    useEffect(() => {
+        if (!assetToken || !baseToken || assetToken.length === 0 || baseToken.length === 0) {
+            console.error('Invalid symbol format:', symbol);
+            // Redirect to a default trading pair
+            router.replace('/spot/BTC_USDT');
+        }
+    }, [symbol, assetToken, baseToken, router]);
 
     const value: SpotContextType = {
         symbol,
-        assetToken,
-        baseToken,
+        assetToken: assetToken || '',
+        baseToken: baseToken || '',
     };
 
     return <SpotContext.Provider value={value}>{children}</SpotContext.Provider>;
