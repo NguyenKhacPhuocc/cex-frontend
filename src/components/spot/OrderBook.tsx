@@ -190,7 +190,7 @@ export default function OrderBook() {
                 <div className="flex-1 overflow-hidden flex flex-col text-[12px] relative h-full">
                     {/* Asks (Sell Orders) - Display từ cao -> thấp */}
                     {(viewMode === "all" || viewMode === "asks") && (
-                        <div className="flex-1 h-full overflow-hidden relative">
+                        <div className="flex-1 h-full overflow-hidden relative align-text-bottom">
                             {sortedAsks.slice().map((ask, index) => {
                                 const isAfterHover = hoveredOrder?.side === "ask" && index >= hoveredOrder.index;
                                 const isHovered = hoveredOrder?.side === "ask" && index === hoveredOrder.index;
