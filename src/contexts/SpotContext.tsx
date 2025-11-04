@@ -54,12 +54,14 @@ export function SpotProvider({ children, symbol }: SpotProviderProps) {
         };
     }, [symbol]);
 
-    // Validate symbol format
+    // Validate symbol format - only redirect if invalid AND not already at default
     useEffect(() => {
         if (!assetToken || !baseToken || assetToken.length === 0 || baseToken.length === 0) {
             console.error('Invalid symbol format:', symbol);
-            // Redirect to a default trading pair
-            router.replace('/spot/BTC_USDT');
+            // Only redirect if not already at default pair to avoid infinite loop
+            if (symbol !== 'BTC_USDT') {
+                router.replace('/spot/BTC_USDT');
+            }
         }
     }, [symbol, assetToken, baseToken, router]);
 

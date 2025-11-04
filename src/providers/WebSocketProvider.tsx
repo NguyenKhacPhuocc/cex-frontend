@@ -6,7 +6,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_URL_BACKEND || "http://localhost:8000";
-
 interface WebSocketContextType {
     socket: Socket | null;
     isConnected: boolean;
