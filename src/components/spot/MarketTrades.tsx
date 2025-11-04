@@ -93,7 +93,7 @@ export default function MarketTrades() {
             </div>
 
             {/* Trades List */}
-            <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-gray-400  max-h-[420px]  mt-[4px]">
+            <div className="flex-1 overflow-hidden max-h-[420px] mt-[4px]">
                 {activeTab === "market" ? (
                     marketLoading ? (
                         <div className="flex items-center justify-center h-full text-gray-400 text-[12px]">

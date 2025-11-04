@@ -35,7 +35,7 @@ export default function OpenOrders() {
         if (!hideOtherPairs || !symbol) return openOrders;
         return openOrders.filter(order => order.market.symbol === symbol);
     }, [openOrders, hideOtherPairs, symbol]);
-
+    console.log(filteredOpenOrders)
     const filteredOrderHistory = useMemo(() => {
         if (!hideOtherPairs || !symbol) return orderHistory || [];
         return (orderHistory || []).filter(order => order.market.symbol === symbol);
@@ -134,7 +134,9 @@ export default function OpenOrders() {
         const parts = num.toFixed(decimals).split('.');
         const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
         const decimalPart = parts[1];
-        return decimalPart ? `${integerPart},${decimalPart}` : integerPart;
+        // Remove trailing zeros
+        const trimmedDecimal = decimalPart ? decimalPart.replace(/0+$/, '') : '';
+        return trimmedDecimal ? `${integerPart},${trimmedDecimal}` : integerPart;
     };
 
     const formatDate = (date: string | Date | undefined): string => {
@@ -201,7 +203,7 @@ export default function OpenOrders() {
     }, [activeTab]);
 
     return (
-        <div className="min-h-[560px] bg-white dark:bg-[#181A20] rounded-[8px] flex flex-col">
+        <div className="min-h-[560px] h-full bg-white dark:bg-[#181A20] rounded-[8px] flex flex-col">
             {/* Tabs */}
             <div className="flex items-center justify-between px-[16px] border-b border-[#F5F5F5] dark:border-[#373c43]">
                 <div className="flex items-center gap-[24px] h-[42px] relative">
@@ -212,7 +214,7 @@ export default function OpenOrders() {
                                 tabsRef.current[tab.id] = el;
                             }}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`py-[12px] text-[14px] font-medium transition-colors ${activeTab === tab.id
+                            className={`py-[12px] text-[14px] font-medium  ${activeTab === tab.id
                                 ? "text-[#F0B90B]"
                                 : "text-[#9c9c9c] hover:text-black dark:hover:text-[#eaecef]"
                                 }`}
@@ -244,11 +246,11 @@ export default function OpenOrders() {
                 )}
                 {isLogin && (activeTab === "history" || activeTab === "trade-history") && (
                     <div className="flex items-center gap-[12px]">
-                        <button className="flex items-center gap-[4px] text-[12px] text-[#9c9c9c] hover:text-black">
+                        <button className="flex items-center gap-[4px] text-[12px] text-[#9c9c9c] hover:text-black dark:hover:text-[#eaecef]">
                             {sortByTime}
                             <IoChevronDown className="text-[14px]" />
                         </button>
-                        <label className="flex items-center gap-[8px] text-[12px] font-medium cursor-pointer">
+                        <label className="flex items-center gap-[8px] text-[12px] font-medium cursor-pointer dark:text-[#eaecef]">
                             <input
                                 type="checkbox"
                                 checked={hideOtherPairs}
@@ -300,7 +302,7 @@ export default function OpenOrders() {
                                                 {header.hasDropdown ? (
                                                     <button
                                                         onClick={() => handleSort(header.label)}
-                                                        className={`flex items-center gap-[4px] ${justifyClass} hover:text-black transition-colors ${sortColumn === header.label ? "text-black" : ""
+                                                        className={`flex items-center gap-[4px] ${justifyClass} hover:text-black  ${sortColumn === header.label ? "text-black" : ""
                                                             }`}
                                                     >
                                                         {header.label}
@@ -339,16 +341,16 @@ export default function OpenOrders() {
                                             </tr>
                                         ) : (
                                             filteredOpenOrders.map((order) => (
-                                                <tr key={order.id} className="border-t border-[#F5F5F5] dark:border-[#373c43] hover:bg-gray-50 dark:text-[#eaecef]">
+                                                <tr key={order.id} className="border-t border-[#F5F5F5] dark:border-[#373c43] hover:bg-gray-50 dark:text-[#eaecef] dark:hover:bg-gray-800">
                                                     <td className="px-[12px] py-[12px] text-[12px]">{formatTime(order.createdAt)}</td>
                                                     <td className="px-[12px] py-[12px] text-[12px]">{order.market.symbol.replace('_', '/')}</td>
-                                                    <td className="px-[12px] py-[12px] text-[12px]">{order.type}</td>
-                                                    <td className={`px-[12px] py-[12px] text-[12px] ${getSideColor(order.side)}`}>{order.side}</td>
-                                                    <td className="px-[12px] py-[12px] text-[12px]">{order.price ? formatNumber(order.price, 2) : 'Market'}</td>
-                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(order.amount, 5)}</td>
-                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber((order.price || 0) * order.amount, 2)}</td>
-                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(order.filled, 5)}</td>
-                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(order.amount, 5)}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{order.type.toUpperCase()}</td>
+                                                    <td className={`px-[12px] py-[12px] text-[12px] ${getSideColor(order.side)}`}>{order.side.toUpperCase()}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{order.price ? formatNumber(Number(order.price), 2) : 'Market'}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(order.amount), 5)}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(order.price || 0) * Number(order.amount), 2)}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(order.filled), 5)}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(order.amount), 5)}</td>
                                                     <td className="px-[12px] py-[12px] text-[12px]">--</td>
                                                     <td className="px-[12px] py-[12px] text-[12px]">--</td>
                                                     <td className="px-[12px] py-[12px] text-[12px]">--</td>
@@ -375,23 +377,23 @@ export default function OpenOrders() {
                                             </tr>
                                         ) : (
                                             filteredOrderHistory.map((order) => {
-                                                const avgPrice = order.filled > 0 ? (order.price || 0) : 0;
+                                                const avgPrice = Number(order.filled) > 0 ? Number(order.price || 0) : 0;
                                                 return (
-                                                    <tr key={order.id} className="border-t border-[#F5F5F5] dark:border-[#373c43] dark:text-[#eaecef] hover:bg-gray-50">
+                                                    <tr key={order.id} className="border-t border-[#F5F5F5] dark:border-[#373c43] dark:text-[#eaecef] hover:bg-gray-50 dark:hover:bg-gray-800">
                                                         <td className="px-[12px] py-[12px] text-[12px]">{formatDate(order.createdAt)}</td>
                                                         <td className="px-[12px] py-[12px] text-[12px]">{order.market.symbol.replace('_', '/')}</td>
-                                                        <td className="px-[12px] py-[12px] text-[12px]">{order.type}</td>
-                                                        <td className={`px-[12px] py-[12px] text-[12px] ${getSideColor(order.side)}`}>{order.side}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{order.type.toUpperCase()}</td>
+                                                        <td className={`px-[12px] py-[12px] text-[12px] ${getSideColor(order.side)}`}>{order.side.toUpperCase()}</td>
                                                         <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(avgPrice, 2)}</td>
-                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(order.price || 0, 2)}</td>
-                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(order.filled, 5)}</td>
-                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(order.amount, 5)}</td>
-                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber((order.price || 0) * order.amount, 2)}</td>
-                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber((order.price || 0) * order.amount, 2)}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(order.price || 0), 2)}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(order.filled), 5)}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(order.amount), 5)}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(order.price || 0) * Number(order.amount), 2)}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(order.price || 0) * Number(order.amount), 2)}</td>
                                                         <td className="px-[12px] py-[12px] text-[12px]">--</td>
                                                         <td className="px-[12px] py-[12px] text-[12px]">--</td>
                                                         <td className="px-[12px] py-[12px] text-[12px]">--</td>
-                                                        <td className={`px-[12px] py-[12px] text-[12px]  ${getOrderStatusColor(order.status)}`}>{order.status}</td>
+                                                        <td className={`px-[12px] py-[12px] text-[12px]  ${getOrderStatusColor(order.status)}`}>{order.status.toUpperCase()}</td>
                                                     </tr>
                                                 );
                                             })
@@ -416,14 +418,14 @@ export default function OpenOrders() {
                                             </tr>
                                         ) : (
                                             filteredTradeHistory.map((trade) => (
-                                                <tr key={trade.id} className="border-t border-[#F5F5F5] hover:bg-gray-50 dark:border-[#373c43] dark:text-[#eaecef]">
+                                                <tr key={trade.id} className="border-t border-[#F5F5F5] hover:bg-gray-50 dark:border-[#373c43] dark:text-[#eaecef] dark:hover:bg-gray-800">
                                                     <td className="px-[12px] py-[12px] text-[12px]">{trade.id}</td>
                                                     <td className="px-[12px] py-[12px] text-[12px]">{formatTime(trade.timestamp)}</td>
                                                     <td className="px-[12px] py-[12px] text-[12px]">{trade.market.replace('_', '/')}</td>
-                                                    <td className={`px-[12px] py-[12px] text-[12px] ${getSideColor(trade.side)}`}>{trade.side}</td>
-                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(trade.price, 2)}</td>
-                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(trade.amount, 5)}</td>
-                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(trade.fee, 6)}</td>
+                                                    <td className={`px-[12px] py-[12px] text-[12px] ${getSideColor(trade.side)}`}>{trade.side.toUpperCase()}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(trade.price), 2)}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(trade.amount), 5)}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(trade.fee), 6)}</td>
                                                     <td className="px-[12px] py-[12px] text-[12px]">{trade.counterparty.type === 'BUYER' ? 'Maker' : 'Taker'}</td>
                                                     <td className="px-[12px] py-[12px] text-[12px]">--</td>
                                                     <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(trade.total), 2)}</td>

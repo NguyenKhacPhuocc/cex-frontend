@@ -2,6 +2,11 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 
+type CoinType = 'BTC' | 'ETH' | 'BNB' | 'SOL' | 'TON' | 'DOGE' | 'PEPE' | 'LUMIA' | 'TAO';
+
+// Danh sách các coin types có sẵn
+const coinTypes: CoinType[] = ['BTC', 'ETH', 'BNB', 'SOL', 'TON', 'DOGE', 'PEPE', 'LUMIA', 'TAO'];
+
 interface Coin {
     id: number;
     x: number;
@@ -12,6 +17,7 @@ interface Coin {
     rotationSpeed: number;
     drift: number;
     opacity: number;
+    type: CoinType;
 }
 
 interface AnimatedBackgroundProps {
@@ -32,6 +38,27 @@ export default function AnimatedBackground({
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [coins, setCoins] = useState<Coin[]>([]);
     const coinIdRef = useRef(0);
+    const [isDarkMode, setIsDarkMode] = useState(false);
+
+    // Detect dark mode
+    useEffect(() => {
+        const checkDarkMode = () => {
+            const isDark = document.documentElement.classList.contains("dark");
+            setIsDarkMode(isDark);
+        };
+
+        // Check on mount
+        checkDarkMode();
+
+        // Watch for changes
+        const observer = new MutationObserver(checkDarkMode);
+        observer.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ["class"],
+        });
+
+        return () => observer.disconnect();
+    }, []);
 
     // Grid Animation Effect
     useEffect(() => {
@@ -53,15 +80,27 @@ export default function AnimatedBackground({
         let currentOffsetX = 0;
         let currentOffsetY = 0;
 
-        // Set canvas size and create gradient
+        // Set canvas size and create gradient based on theme
+        const createGradient = () => {
+            if (isDarkMode) {
+                // Dark mode colors
+                gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+                gradient.addColorStop(0, "#050008");
+                gradient.addColorStop(0.5, "#0a0515");
+                gradient.addColorStop(1, "#08040f");
+            } else {
+                // Light mode colors
+                gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+                gradient.addColorStop(0, "#f8f9fa");
+                gradient.addColorStop(0.5, "#f5f6f7");
+                gradient.addColorStop(1, "#fafbfc");
+            }
+        };
+
         const resizeCanvas = () => {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            // Cache gradient - only recreate on resize
-            gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-            gradient.addColorStop(0, "#050008");
-            gradient.addColorStop(0.5, "#0a0515");
-            gradient.addColorStop(1, "#08040f");
+            createGradient();
         };
         resizeCanvas();
         window.addEventListener("resize", resizeCanvas);
@@ -80,16 +119,22 @@ export default function AnimatedBackground({
 
         // Animation loop
         const animate = () => {
+            // Recreate gradient if theme changed (check every frame but only update if needed)
+            // Note: This is handled by useEffect dependency, but we recreate here for safety
+            createGradient();
+
             // Smooth interpolation (lerp) to mouse position
             currentOffsetX += (mouseX - currentOffsetX) * gridSmoothness;
             currentOffsetY += (mouseY - currentOffsetY) * gridSmoothness;
 
-            // Clear with cached gradient
+            // Clear with gradient (will use latest gradient)
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Setup grid drawing
-            ctx.strokeStyle = "rgba(100, 60, 200, 0.08)";
+            // Setup grid drawing - different colors for dark/light mode
+            ctx.strokeStyle = isDarkMode
+                ? "rgba(100, 60, 200, 0.08)" // Dark mode: purple grid
+                : "rgba(200, 200, 220, 0.15)"; // Light mode: light gray grid
             ctx.lineWidth = 1;
 
             ctx.save();
@@ -139,13 +184,16 @@ export default function AnimatedBackground({
             window.removeEventListener("mousemove", handleMouseMove);
             cancelAnimationFrame(animationId);
         };
-    }, [showGrid, gridParallaxFactor, gridSmoothness]);
+    }, [showGrid, gridParallaxFactor, gridSmoothness, isDarkMode]);
 
     // Spawn coins continuously
     useEffect(() => {
         if (!showCoins) return;
 
         const spawnCoin = () => {
+            // Random chọn coin type
+            const randomCoinType = coinTypes[Math.floor(Math.random() * coinTypes.length)];
+
             const newCoin: Coin = {
                 id: coinIdRef.current++,
                 x: Math.random() * 100, // 0-100%
@@ -156,6 +204,7 @@ export default function AnimatedBackground({
                 rotationSpeed: 1 + Math.random() * 2,
                 drift: -20 + Math.random() * 40, // -20 to 20
                 opacity: 0.3 + Math.random() * 0.4, // 0.3-0.7
+                type: randomCoinType,
             };
             setCoins((prev) => [...prev, newCoin]);
         };
@@ -221,8 +270,8 @@ export default function AnimatedBackground({
                             }}
                         >
                             <Image
-                                src="/asset-BTC.png"
-                                alt="BTC"
+                                src={`/${coin.type}.png`}
+                                alt={coin.type}
                                 width={coin.size}
                                 height={coin.size}
                                 className="w-full h-full"

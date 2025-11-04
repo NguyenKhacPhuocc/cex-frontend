@@ -337,7 +337,7 @@ export default function TradingPairs() {
                         <div
                             key={pair.symbol}
                             onClick={() => handlePairClick(pair.symbol)}
-                            className="px-[16px] pt-[8px] hover:bg-gray-50 cursor-pointer transition-colors"
+                            className="px-[16px] pt-[8px] hover:bg-gray-50 cursor-pointer dark:hover:bg-gray-800"
                         >
                             <div className="grid grid-cols-[16px_1fr_70px_90px] gap-[6px] items-center text-[12px]">
                                 {/* Favorite Icon */}

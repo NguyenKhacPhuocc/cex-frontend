@@ -99,30 +99,49 @@ export const useMarketTrades = (symbol: string) => {
 
   // Listen for new trades via WebSocket
   useEffect(() => {
-    if (!socket || !isConnected) return;
+    if (!socket) return;
 
     const handleNewTrade = (trade: MarketTrade & { symbol: string }) => {
+      console.log("🔔 [WebSocket] Received trade:new event:", {
+        tradeSymbol: trade.symbol,
+        expectedSymbol: symbol,
+      });
       if (trade.symbol === symbol) {
-        console.log("💹 [WebSocket] New market trade received:", trade);
+        console.log("✅ [WebSocket] Symbols match! Processing trade:", trade);
 
-        // Add new trade to the top, keep only last 50
+        // Add new trade to the top, keep only last 50, avoid duplicates
         setRealtimeTrades((prev) => {
-          const newTrades = [trade, ...prev].slice(0, 50);
+          // Filter out duplicate trades by id
+          const filteredPrev = prev.filter((t) => t.id !== trade.id);
+          const newTrades = [trade, ...filteredPrev].slice(0, 50);
           console.log(
-            `📊 [WebSocket] Updated trades (${newTrades.length} total):`,
+            `📊 [WebSocket] Updated trades (${
+              newTrades.length
+            } total, removed ${prev.length - filteredPrev.length} duplicates):`,
             newTrades
           );
           return newTrades;
         });
+      } else {
+        console.log(
+          `❌ [WebSocket] Symbol mismatch: got ${trade.symbol}, expected ${symbol}`
+        );
       }
     };
 
+    // Always register listener (even if not connected, it will work once connected)
     socket.on("trade:new", handleNewTrade);
+    console.log(
+      `📊 [useMarketTrades] Registered trade:new listener for ${symbol}`
+    );
 
     return () => {
+      console.log(
+        `📊 [useMarketTrades] Removing trade:new listener for ${symbol}`
+      );
       socket.off("trade:new", handleNewTrade);
     };
-  }, [socket, isConnected, symbol]);
+  }, [socket, symbol]);
 
   return {
     trades: realtimeTrades,

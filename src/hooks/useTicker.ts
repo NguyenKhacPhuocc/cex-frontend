@@ -29,35 +29,41 @@ export const useTicker = (symbol: string) => {
 
   // Subscribe to ticker via WebSocket (no HTTP requests!)
   useEffect(() => {
-    if (!socket || !isConnected || !symbol) {
+    if (!socket || !symbol) {
       setIsLoading(true);
       return;
     }
 
-    console.log(`📈 [useTicker] Subscribing to ticker: ${symbol}`);
-    setIsLoading(true);
-
-    // Subscribe to ticker for this symbol
-    socket.emit("ticker:subscribe", { symbol });
-
-    // Listen for ticker snapshot (initial data)
+    // Always register listeners (they will work once connected)
     const handleSnapshot = (data: Ticker) => {
-      console.log(`📸 [useTicker] Snapshot received for ${symbol}:`, data);
+      console.log(`📸 [useTicker] Snapshot received:`, {
+        receivedSymbol: data.symbol,
+        expectedSymbol: symbol.toUpperCase(),
+      });
       if (data.symbol === symbol.toUpperCase()) {
+        console.log("✅ [useTicker] Snapshot symbols match!");
         setTicker(data);
         setIsLoading(false);
         setError(null);
+      } else {
+        console.log(`❌ [useTicker] Snapshot symbol mismatch!`);
       }
     };
 
     // Listen for ticker updates (real-time)
     const handleUpdate = (updatedTicker: Ticker) => {
-      console.log("💹 [useTicker] Update received:", updatedTicker);
+      console.log("💹 [useTicker] Update received:", {
+        receivedSymbol: updatedTicker.symbol,
+        expectedSymbol: symbol.toUpperCase(),
+      });
 
       // Only update if it's for this symbol
       if (updatedTicker.symbol === symbol.toUpperCase()) {
+        console.log("✅ [useTicker] Update symbols match! Updating ticker");
         setTicker(updatedTicker);
         setError(null);
+      } else {
+        console.log(`❌ [useTicker] Update symbol mismatch!`);
       }
     };
 
@@ -71,6 +77,22 @@ export const useTicker = (symbol: string) => {
     socket.on("ticker:snapshot", handleSnapshot);
     socket.on("ticker:update", handleUpdate);
     socket.on("ticker:error", handleError);
+    console.log(`📈 [useTicker] Registered ticker listeners for ${symbol}`);
+
+    // Subscribe to ticker for this symbol if connected
+    if (isConnected) {
+      console.log(`📈 [useTicker] Subscribing to ticker: ${symbol}`);
+      socket.emit("ticker:subscribe", { symbol });
+    }
+
+    // Also subscribe when connection is established
+    const handleConnect = () => {
+      console.log(
+        `📈 [useTicker] Socket connected, subscribing to ticker: ${symbol}`
+      );
+      socket.emit("ticker:subscribe", { symbol });
+    };
+    socket.on("connect", handleConnect);
 
     // Cleanup
     return () => {
@@ -79,6 +101,7 @@ export const useTicker = (symbol: string) => {
       socket.off("ticker:snapshot", handleSnapshot);
       socket.off("ticker:update", handleUpdate);
       socket.off("ticker:error", handleError);
+      socket.off("connect", handleConnect);
     };
   }, [socket, isConnected, symbol]);
 

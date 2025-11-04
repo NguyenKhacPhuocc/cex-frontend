@@ -183,7 +183,7 @@ export default function Ticker() {
                             </div>
                         </div>
                     </div>
-                    <div className="flex justify-center items-center flex-col">
+                    <div className="flex justify-center flex-col items-start">
                         {isLoadingTicker ? (
                             <>
                                 <div className="text-[20px] text-gray-400 font-medium leading-[20px]">--</div>

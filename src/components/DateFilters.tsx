@@ -78,7 +78,7 @@ export default function DateFilters({ onDateRangeChange }: DateFiltersProps) {
                 <button
                     key={filter}
                     onClick={() => handleDateFilterClick(filter)}
-                    className={`px-[12px] py-[4px] text-[12px] rounded-[4px] transition-colors ${dateFilter === filter
+                    className={`px-[12px] py-[4px] text-[12px] rounded-[4px]  ${dateFilter === filter
                         ? "bg-[#FEF6E6] text-[#F0B90B]"
                         : "text-[#9c9c9c] hover:bg-gray-50"
                         }`}
@@ -109,13 +109,13 @@ export default function DateFilters({ onDateRangeChange }: DateFiltersProps) {
             />
             <button
                 onClick={handleSearch}
-                className="px-[12px] py-[4px] text-[12px] text-white bg-[#F0B90B] hover:bg-[#d9a60a] rounded-[4px] transition-colors"
+                className="px-[12px] py-[4px] text-[12px] text-white bg-[#F0B90B] hover:bg-[#d9a60a] rounded-[4px]"
             >
                 Tìm
             </button>
             <button
                 onClick={handleReset}
-                className="px-[12px] py-[4px] text-[12px] text-[#9c9c9c] hover:bg-gray-50 rounded-[4px] transition-colors"
+                className="px-[12px] py-[4px] text-[12px] text-[#9c9c9c] hover:bg-gray-50 rounded-[4px]"
             >
                 Đặt lại
             </button>

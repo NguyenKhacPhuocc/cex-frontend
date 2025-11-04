@@ -144,7 +144,7 @@ export const useOpenOrders = (enabled: boolean = true) => {
       console.log("📋 [WebSocket] Order updated event received:", data);
 
       // ✅ Optimistic update: Remove order immediately if status is FILLED
-      if (data.status === "filled" || data.status === "FILLED") {
+      if (data.status === "FILLED") {
         setRealtimeOrders((prev) => {
           const filtered = prev.filter((order) => order.id !== data.orderId);
           console.log(
@@ -155,10 +155,10 @@ export const useOpenOrders = (enabled: boolean = true) => {
       }
 
       // Refetch to get updated data (partially filled orders need updated filled amount)
-      // Small delay to ensure backend cache is cleared
+      // Delay to ensure backend cache is cleared and DB is updated
       setTimeout(() => {
         refetch();
-      }, 100);
+      }, 500);
     };
 
     const handleTradeExecuted = (tradeData?: {
@@ -182,10 +182,10 @@ export const useOpenOrders = (enabled: boolean = true) => {
       }
 
       // Refetch to get updated filled amounts and statuses
-      // Small delay to ensure backend cache is cleared
+      // Delay to ensure backend cache is cleared and DB is updated
       setTimeout(() => {
         refetch();
-      }, 100);
+      }, 500);
     };
 
     socket.on("order:updated", handleOrderUpdate);

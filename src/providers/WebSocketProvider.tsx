@@ -64,31 +64,36 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
 
         // Connection events
         newSocket.on("connect", () => {
-            console.log("✅ WebSocket connected:", newSocket.id);
+            console.log("✅ [WebSocketProvider] WebSocket connected:", newSocket.id);
             setIsConnected(true);
         });
 
         newSocket.on("connected", (data) => {
             if (data?.userId) {
-                console.log("✅ WebSocket authenticated:", data);
-                console.log("👤 My User ID for WebSocket room:", data.userId);
+                console.log("✅ [WebSocketProvider] WebSocket authenticated:", data);
+                console.log("👤 [WebSocketProvider] My User ID for WebSocket room:", data.userId);
             } else {
-                console.log("✅ WebSocket connected (anonymous - public data only)");
+                console.log("✅ [WebSocketProvider] WebSocket connected (anonymous - public data only)");
             }
         });
 
         newSocket.on("disconnect", (reason) => {
-            console.log("❌ WebSocket disconnected:", reason);
+            console.log("❌ [WebSocketProvider] WebSocket disconnected:", reason);
             setIsConnected(false);
         });
 
         newSocket.on("error", (error) => {
-            console.error("❌ WebSocket error:", error);
+            console.error("❌ [WebSocketProvider] WebSocket error:", error);
         });
 
         newSocket.on("connect_error", (error) => {
-            console.error("❌ WebSocket connect_error:", error.message);
+            console.error("❌ [WebSocketProvider] WebSocket connect_error:", error.message);
             console.error("Full error:", error);
+        });
+
+        // Public market events (should work for all connected clients)
+        newSocket.onAny((eventName, ...args) => {
+            console.log(`📡 [WebSocketProvider] Received event: ${eventName}`, args[0]);
         });
 
         // Trading events - Balance updates

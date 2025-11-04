@@ -55,13 +55,15 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en">
-            <body className={`${binanceNova.className} ${binanceNova.variable}`}>
+        <html lang="en" className="dark">
+            <body className={`${binanceNova.className} ${binanceNova.variable} bg-black`}>
                 <QueryProvider>
                     <WebSocketProvider>
                         <ScrollToTop />
-                        <div className="max-w-[1920px] mx-auto dark:bg-top-right">
-                            {children}
+                        <div className="dark:bg-top-right dark:bg-[#0B0E11]">
+                            <div className="max-w-[1920px] mx-auto">
+                                {children}
+                            </div>
                         </div>
                     </WebSocketProvider>
                     <Toaster

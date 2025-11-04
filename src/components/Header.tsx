@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import toast from "react-hot-toast";
 import api from "@/lib/axios";
 import { useEffect, useState } from "react";
+import { TbArrowBarToDown } from "react-icons/tb";
 
 export default function Header() {
     const { user, isLogin, isLoading, refetch } = useAuth();
@@ -161,10 +162,10 @@ export default function Header() {
                     {/* Chưa đăng nhập: hiện buttons */}
                     {!isLogin && !isLoading && (
                         <>
-                            <Link href={'/login'} className="px-[10px] my-[20px] mx-[8px] bg-[#EDEDED] hover:bg-[#F1F1F1] rounded-[5px] h-[32px] font-medium hover:cursor-pointer flex justify-center items-center">
+                            <Link href={'/login'} className="px-[10px] my-[20px] mx-[8px] bg-[#EDEDED] hover:bg-[#F1F1F1] dark:text-black rounded-[5px] h-[32px] font-medium hover:cursor-pointer flex justify-center items-center">
                                 Đăng nhập
                             </Link>
-                            <Link href={'/register'} className="px-[10px] my-[20px] mr-[8px] bg-[#FCD535] hover:bg-[#FDDD5D] rounded-[5px] h-[32px] font-medium hover:cursor-pointer flex justify-center items-center">
+                            <Link href={'/register'} className="px-[10px] my-[20px] mr-[8px] bg-[#FCD535] hover:bg-[#FDDD5D] rounded-[5px] h-[32px] font-medium hover:cursor-pointer flex justify-center items-center dark:text-black">
                                 Đăng ký
                             </Link>
                         </>
@@ -173,13 +174,18 @@ export default function Header() {
                     {/* Đã đăng nhập: hiện icons + email */}
                     {isLogin && (
                         <>
+                            <button className="mx-[6px] hover:cursor-pointer flex items-center gap-[2px] bg-[#fcd535] text-black px-[10px] h-[32px] rounded-[4px]">
+                                <TbArrowBarToDown className="text-[22px]" />
+                                Nạp
+                            </button>
+
                             {/* User Icon với Dropdown */}
                             <div className="group relative flex items-center py-[20px] px-[8px] hover:text-[#F0B90B] hover:cursor-pointer">
                                 <div className="flex items-center gap-[8px]">
                                     <FaRegCircleUser className="text-[22px]" />
                                 </div>
 
-                                {/* Dropdown on hover */}
+                                {/* Dropdown on hover login*/}
                                 <div className="absolute top-full right-0 hidden group-hover:block bg-white dark:bg-black/80 dark:backdrop-blur-md shadow-lg rounded-lg w-64 z-[999] py-2 border border-gray-200 dark:border-gray-800">
                                     <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-900">
                                         <p className="text-[12px] text-gray-500 dark:text-gray-200">Email</p>
@@ -193,7 +199,11 @@ export default function Header() {
                                         <span className="text-[14px] font-medium">Đăng xuất</span>
                                     </button>
                                 </div>
+
+
                             </div>
+
+
 
                             {/* Wallet Icon */}
                             <div className="text-[22px] py-[20px] px-[8px] hover:text-[#F0B90B] hover:cursor-pointer">
