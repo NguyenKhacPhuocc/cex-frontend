@@ -35,6 +35,8 @@ export default function Chart({ chartData }: ChartProps) {
     const candleSeriesRef = useRef<any>(null);
     const volumeSeriesRef = useRef<any>(null);
     const lastUpdateTimeRef = useRef<number>(0); // Track last updated candle time
+    const lastDataHashRef = useRef<string>(''); // Track data hash to detect significant changes (timeframe changes)
+    const lastTimeframeRef = useRef<string>(''); // Track last timeframe to reset hash on change
 
     // Helper function to convert UTC time to UTC+7 (Vietnam timezone)
     // If data from backend is in UTC, this converts it to UTC+7
@@ -46,9 +48,9 @@ export default function Chart({ chartData }: ChartProps) {
 
     const [activeMainTab, setActiveMainTab] = useState("chart");
     const [activeChartTab, setActiveChartTab] = useState("original");
-    const [timeframe, setTimeframe] = useState("1m");
+    const { timeframe, setTimeframe } = useSpot();
     const [isDarkMode, setIsDarkMode] = useState(false);
-    const [candleHeight, setCandleHeight] = useState(70); // Percentage of total height
+    const [candleHeight, setCandleHeight] = useState(80); // Percentage of total height (increased from 70% to make volume smaller)
     const [isResizing, setIsResizing] = useState(false);
 
     // Apply cursor style when resizing
@@ -85,10 +87,11 @@ export default function Chart({ chartData }: ChartProps) {
         { id: "detail", label: "Chi tiết" },
     ];
 
-    // Timeframes for TradingView tab (no 1s, but has 1m, 30m)
+    // Timeframes for TradingView tab (no 1s, but has 1m, 5m, 30m)
     const tradingViewTimeframes = [
         { label: "Thời gian", value: "time" },
         { label: "1m", value: "1m" },
+        { label: "5m", value: "5m" },
         { label: "15m", value: "15m" },
         { label: "30m", value: "30m" },
         { label: "1h", value: "1h" },
@@ -102,6 +105,7 @@ export default function Chart({ chartData }: ChartProps) {
         { label: "Thời gian", value: "time" },
         // { label: "1s", value: "1s" },
         { label: "1m", value: "1m" },
+        { label: "5m", value: "5m" },
         { label: "15m", value: "15m" },
         { label: "30m", value: "30m" },
         { label: "1h", value: "1h" },
@@ -200,7 +204,7 @@ export default function Chart({ chartData }: ChartProps) {
                     visible: true, // Show price scale for candles
                     autoScale: true, // Auto-scale to fit data
                     scaleMargins: {
-                        top: 0.1,
+                        top: 0.05, // 5% margin at top for candles
                         bottom: 0.1,
                     },
                 },
@@ -220,6 +224,7 @@ export default function Chart({ chartData }: ChartProps) {
                     rightOffset: 10,
                     barSpacing: 2, // Có khoảng cách nhỏ giữa các bars để thấy rõ nến
                     minBarSpacing: 2, // Khoảng cách tối thiểu
+                    rightBarStaysOnScroll: false, // Don't auto-scroll when new data arrives
                 },
                 watermark: {
                     visible: false, // Bỏ watermark/logo
@@ -256,10 +261,11 @@ export default function Chart({ chartData }: ChartProps) {
             // Configure volume price scale (left side, separate from candles)
             // Volume will be displayed at the bottom portion of the chart
             // Ensure scale starts from 0 (no negative values) to prevent volume bars from being compressed
-            const volumeTopMargin = candleHeight / 100; // Percentage from top for candles
+            const gapBetweenCandlesAndVolume = 0.1; // 10% gap between candles and volume for better separation
+            const volumeTopMargin = candleHeight / 100 + gapBetweenCandlesAndVolume; // Percentage from top for candles + gap
             chart.priceScale('left').applyOptions({
                 scaleMargins: {
-                    top: volumeTopMargin, // Volume starts after candles
+                    top: volumeTopMargin, // Volume starts after candles with a small gap
                     bottom: 0, // No margin at bottom - volume bars stick to the bottom
                 },
                 visible: true,
@@ -269,11 +275,12 @@ export default function Chart({ chartData }: ChartProps) {
 
             // Configure right price scale for candles
             // Candles will be displayed at the top portion of the chart
-            const candleBottomMargin = (100 - candleHeight) / 100; // Percentage from bottom for volume
+            const candleTopMargin = 0.1; // 10% margin at top for better visibility
+            const candleBottomMargin = (100 - candleHeight) / 100 + gapBetweenCandlesAndVolume; // Percentage from bottom for volume + gap
             chart.priceScale('right').applyOptions({
                 scaleMargins: {
-                    top: 0,
-                    bottom: candleBottomMargin, // Candles end before volume
+                    top: candleTopMargin, // Add margin at top for candles
+                    bottom: candleBottomMargin, // Candles end before volume with a small gap
                 },
                 autoScale: true,
             });
@@ -293,8 +300,10 @@ export default function Chart({ chartData }: ChartProps) {
             // Update scale margins when candleHeight changes
             const updateScaleMargins = () => {
                 if (!chartRef.current) return;
-                const volumeTopMargin = candleHeight / 100;
-                const candleBottomMargin = (100 - candleHeight) / 100;
+                const gapBetweenCandlesAndVolume = 0.02; // 2% gap between candles and volume
+                const candleTopMargin = 0.05; // 5% margin at top for candles
+                const volumeTopMargin = candleHeight / 100 + gapBetweenCandlesAndVolume;
+                const candleBottomMargin = (100 - candleHeight) / 100 + gapBetweenCandlesAndVolume;
 
                 chart.priceScale('left').applyOptions({
                     scaleMargins: {
@@ -305,7 +314,7 @@ export default function Chart({ chartData }: ChartProps) {
 
                 chart.priceScale('right').applyOptions({
                     scaleMargins: {
-                        top: 0,
+                        top: candleTopMargin, // Add margin at top for candles
                         bottom: candleBottomMargin,
                     },
                 });
@@ -313,8 +322,8 @@ export default function Chart({ chartData }: ChartProps) {
 
             updateScaleMargins();
 
-            // Fit content trước
-            chart.timeScale().fitContent();
+            // Don't auto-fit content - let user control zoom manually
+            // chart.timeScale().fitContent();
 
             // Handle resize
             const handleResize = () => {
@@ -355,8 +364,10 @@ export default function Chart({ chartData }: ChartProps) {
     useEffect(() => {
         if (!chartRef.current || !candleSeriesRef.current || !volumeSeriesRef.current) return;
 
-        const volumeTopMargin = candleHeight / 100;
-        const candleBottomMargin = (100 - candleHeight) / 100;
+        const gapBetweenCandlesAndVolume = 0.02; // 2% gap between candles and volume
+        const candleTopMargin = 0.05; // 5% margin at top for candles
+        const volumeTopMargin = candleHeight / 100 + gapBetweenCandlesAndVolume;
+        const candleBottomMargin = (100 - candleHeight) / 100 + gapBetweenCandlesAndVolume;
 
         chartRef.current.priceScale('left').applyOptions({
             scaleMargins: {
@@ -367,25 +378,55 @@ export default function Chart({ chartData }: ChartProps) {
 
         chartRef.current.priceScale('right').applyOptions({
             scaleMargins: {
-                top: 0,
+                top: candleTopMargin, // Add margin at top for candles
                 bottom: candleBottomMargin,
             },
         });
     }, [candleHeight]);
 
-    // Set initial data ONLY when symbol/timeframe changes (not on realtime updates)
+    // Set initial data when symbol/timeframe changes OR when candles data changes significantly
+    // This ensures chart updates when switching timeframes
     useEffect(() => {
         if (!candleSeriesRef.current || !volumeSeriesRef.current) return;
 
         // Only use real candles data (no mock data fallback)
         let dataToUse = realCandles.length > 0 ? realCandles : (chartData || []);
 
-        // Don't set data if empty array
+        // Reset hash when timeframe or symbol changes
+        const isTimeframeChanged = lastTimeframeRef.current !== timeframe;
+        if (isTimeframeChanged || lastTimeframeRef.current === '') {
+            lastDataHashRef.current = '';
+            lastUpdateTimeRef.current = 0;
+            lastTimeframeRef.current = timeframe;
+        }
+
+        // If no data, skip update (wait for data to load)
         if (dataToUse.length === 0) {
             // Reset lastUpdateTimeRef when data is cleared
             lastUpdateTimeRef.current = 0;
             return;
         }
+
+        // Create a hash based on first candle time, last candle time, and length
+        // This helps detect if this is a timeframe change (significant data change) vs incremental update
+        const firstCandleTime = dataToUse[0]?.time || 0;
+        const lastCandleTime = dataToUse[dataToUse.length - 1]?.time || 0;
+        const dataHash = `${firstCandleTime}-${lastCandleTime}-${dataToUse.length}`;
+
+        // Only do full setData if:
+        // 1. Data hash changed (timeframe/symbol change or significant data change)
+        // 2. Or if this is the first load (lastDataHashRef is empty)
+        // This prevents unnecessary setData calls on incremental updates
+        const isSignificantChange = lastDataHashRef.current === '' || lastDataHashRef.current !== dataHash;
+
+        if (!isSignificantChange && lastDataHashRef.current !== '') {
+            // This is likely just an incremental update, skip full setData
+            // The update effect will handle it via update() method
+            return;
+        }
+
+        // Update hash for next comparison
+        lastDataHashRef.current = dataHash;
 
         // Helper function to safely convert time to number (same as in update effect)
         const convertTimeToNumber = (time: any): number => {
@@ -449,6 +490,10 @@ export default function Chart({ chartData }: ChartProps) {
                 time: convertToUTC7(convertTimeToNumber(candle.time)),
             }));
 
+            // Don't save/restore range - let user control zoom manually
+            // This prevents any auto-scroll behavior
+
+            // Set data - this may trigger chart to auto-scroll
             candleSeriesRef.current.setData(dataWithUTC7Time);
 
             // autoScale will automatically adjust price scale to fit data
@@ -511,7 +556,8 @@ export default function Chart({ chartData }: ChartProps) {
                 // Wait for chart to process the data
                 setTimeout(() => {
                     if (chartRef.current && volumeData.length > 0) {
-                        const volumeTopMargin = candleHeight / 100;
+                        const gapBetweenCandlesAndVolume = 0.02; // 2% gap between candles and volume
+                        const volumeTopMargin = candleHeight / 100 + gapBetweenCandlesAndVolume;
 
                         // Ensure no bottom margin so bars stick to bottom
                         // autoScale will automatically start from 0 since all data is >= 0
@@ -527,49 +573,50 @@ export default function Chart({ chartData }: ChartProps) {
                 }, 100);
             }
 
-            // Auto zoom to fit recent candles when symbol/timeframe changes (initial load)
-            // Calculate optimal number of candles to show based on container width
-            if (chartRef.current && dataWithUTC7Time.length > 0 && chartContainerRef.current) {
-                const containerWidth = chartContainerRef.current.clientWidth;
-                // Calculate optimal candles to show: ~1 candle per 10-15 pixels
-                // This ensures candles are clearly visible without being too cramped
-                const pixelsPerCandle = 12; // Adjust this to control zoom level
-                const optimalCandles = Math.floor(containerWidth / pixelsPerCandle);
-
-                // Show between 50-150 candles (or all if less than 50)
-                const candlesToShow = Math.min(
-                    Math.max(50, optimalCandles),
-                    Math.min(150, dataWithUTC7Time.length)
-                );
-
-                const startIndex = Math.max(0, dataWithUTC7Time.length - candlesToShow);
-
-                // Get time range for visible candles
-                const startTime = dataWithUTC7Time[startIndex].time;
-                const endTime = dataWithUTC7Time[dataWithUTC7Time.length - 1].time;
-
-                // Set visible range to show recent candles with optimal zoom
-                chartRef.current.timeScale().setVisibleRange({
-                    from: startTime as any,
-                    to: endTime as any,
-                });
-
-                // Scroll to the rightmost point (latest candle) after a short delay
-                // This ensures the chart is fully rendered before scrolling
+            // Auto-fit time scale and price scale when loading data (first time or timeframe change)
+            // This ensures candles are visible with proper zoom level
+            if (chartRef.current && dataWithUTC7Time.length > 0) {
                 setTimeout(() => {
                     if (chartRef.current) {
                         try {
-                            // Try to scroll to real-time (if supported)
-                            chartRef.current.timeScale().scrollToRealTime();
+                            const visibleRange = chartRef.current.timeScale().getVisibleRange();
+                            // Only fitContent if chart is empty (no visible range set)
+                            if (!visibleRange || !visibleRange.from || !visibleRange.to) {
+                                // Fit time scale to show all candles
+                                chartRef.current.timeScale().fitContent();
+
+                                // Calculate min/max price of all candles to ensure proper price scale
+                                // This ensures high/low points of candles are visible in the chart
+                                const prices = dataWithUTC7Time.flatMap(candle => [
+                                    candle.high,
+                                    candle.low,
+                                    candle.open,
+                                    candle.close
+                                ]).filter(price => price && !isNaN(price) && price > 0);
+
+                                if (prices.length > 0) {
+                                    // Set price scale margins to ensure high/low points are visible
+                                    // with some breathing room (10% margin on top and bottom)
+                                    chartRef.current.priceScale('right').applyOptions({
+                                        autoScale: true,
+                                        scaleMargins: {
+                                            top: 0.1, // 10% margin at top - ensures highest point is visible
+                                            bottom: 0.1, // 10% margin at bottom - ensures lowest point is visible
+                                        },
+                                    });
+
+                                    // Force chart to recalculate and apply the price scale
+                                    // This ensures the scale fits the data properly
+                                    chartRef.current.timeScale().fitContent();
+                                }
+                            }
+                            // Otherwise, don't change the view - let user control it
                         } catch {
-                            // Fallback: scroll to the end time
-                            chartRef.current.timeScale().scrollToPosition(endTime as any, true);
+                            // If error getting range, assume empty and fit content
+                            chartRef.current.timeScale().fitContent();
                         }
                     }
                 }, 150);
-            } else if (chartRef.current) {
-                // Fallback to fitContent if no data
-                chartRef.current.timeScale().fitContent();
             }
 
             // Set last update time to the last candle's time from initial data
@@ -588,9 +635,9 @@ export default function Chart({ chartData }: ChartProps) {
         } catch (error) {
             console.error('Error setting initial data:', error);
         }
-        // Only trigger on symbol/timeframe changes, NOT on realCandles updates
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isDarkMode, symbol, timeframe]);
+        // Include realCandles in dependencies to update chart when timeframe changes
+        // The dataHash check prevents unnecessary updates on incremental changes
+    }, [isDarkMode, symbol, timeframe, realCandles]);
 
     // Map timeframe value to TradingView interval format
     // Note: TradingView interval format:
@@ -601,6 +648,7 @@ export default function Chart({ chartData }: ChartProps) {
         const intervalMap: { [key: string]: string } = {
             // "1s": "1S", // 1 second (may require Premium account, falls back to 1 minute if not available)
             "1m": "1", // 1 minute
+            "5m": "5", // 5 minutes
             "15m": "15", // 15 minutes
             "30m": "30", // 30 minutes
             "1h": "60", // 60 minutes = 1 hour
@@ -687,11 +735,12 @@ export default function Chart({ chartData }: ChartProps) {
             // Get current data from series to check oldest/newest times
             // lightweight-charts doesn't expose this directly, so we track it ourselves
             // Only update if this is a new candle (time > last update time) OR same candle with updated data
-            // Note: lastUpdateTimeRef stores UTC+7 time (same format as chart data)
+            // Note: lastUpdateTimeRef.current stores UTC+7 time (same format as chart data)
             // This prevents updating with old data when switching symbols/timeframes, but allows updates for the current candle
             if (candleData.time >= lastUpdateTimeRef.current) {
                 try {
                     // Update candle - lightweight-charts will handle update/create automatically
+                    // Don't save/restore visible range - let user control zoom manually
                     candleSeriesRef.current.update(candleData);
 
                     // Update volume
@@ -707,6 +756,9 @@ export default function Chart({ chartData }: ChartProps) {
 
                     // Update last update time
                     lastUpdateTimeRef.current = candleData.time;
+
+                    // Don't restore range - let user control zoom manually
+                    // This prevents auto-scroll when new candles arrive
 
                     // Log for debugging
                     console.log('📊 Updated chart with candle:', {

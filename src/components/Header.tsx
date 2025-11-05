@@ -227,6 +227,17 @@ export default function Header() {
                     <div className="text-[22px] py-[20px] px-[8px] hover:text-[#F0B90B] hover:cursor-pointer">
                         <GiSpellBook />
                     </div>
+
+                    {/* User Icon với Dropdown */}
+                    {/* <div className="group relative flex items-center py-[20px] px-[8px] hover:text-[#F0B90B] hover:cursor-pointer">
+                        <div className="text-[22px] py-[20px] px-[8px] hover:text-[#F0B90B] hover:cursor-pointer">
+                            <GiSpellBook />
+                        </div> */}
+                        {/* Dropdown on hover login
+                        {/* <div className="absolute top-full right-0 hidden group-hover:block bg-white dark:bg-black/80 dark:backdrop-blur-md shadow-lg rounded-lg w-64 z-[999] py-2 border border-gray-200 dark:border-gray-800">
+                            <GuidedTour />
+                        </div>
+                    </div> */}
                     <div className="text-[22px] py-[20px] px-[8px] hover:text-[#F0B90B] hover:cursor-pointer">
                         <RiSettingsLine />
                     </div>

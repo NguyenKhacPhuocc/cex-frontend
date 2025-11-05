@@ -1,11 +1,13 @@
 "use client";
-import { createContext, useContext, ReactNode, useEffect, useMemo } from 'react';
+import { createContext, useContext, ReactNode, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface SpotContextType {
     symbol: string;
     assetToken: string;
     baseToken: string;
+    timeframe: string;
+    setTimeframe: (timeframe: string) => void;
 }
 
 const SpotContext = createContext<SpotContextType | undefined>(undefined);
@@ -16,7 +18,29 @@ interface SpotProviderProps {
 }
 
 export function SpotProvider({ children, symbol }: SpotProviderProps) {
+    // Always start with "1m" to avoid hydration mismatch (same on server and client)
+    // This ensures server and client render the same HTML initially
+    const [timeframe, setTimeframeState] = useState<string>("1m");
     const router = useRouter();
+
+    // Load timeframe from localStorage after mount (client-side only)
+    // This prevents hydration mismatch because server always renders "1m"
+    useEffect(() => {
+        const saved = localStorage.getItem('spot_timeframe');
+        // Validate saved timeframe is one of the valid values
+        const validTimeframes = ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w'];
+        if (saved && validTimeframes.includes(saved)) {
+            setTimeframeState(saved);
+        }
+    }, []);
+
+    // Wrapper function to update both state and localStorage
+    const setTimeframe = (newTimeframe: string) => {
+        setTimeframeState(newTimeframe);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('spot_timeframe', newTimeframe);
+        }
+    };
 
     // Parse symbol: BTC_USDT → assetToken: BTC, baseToken: USDT
     // Also support BTCUSDT format (no underscore) by splitting at last 4 chars (USDT, BTC, etc.)
@@ -69,6 +93,8 @@ export function SpotProvider({ children, symbol }: SpotProviderProps) {
         symbol,
         assetToken: assetToken || '',
         baseToken: baseToken || '',
+        timeframe,
+        setTimeframe,
     };
 
     return <SpotContext.Provider value={value}>{children}</SpotContext.Provider>;

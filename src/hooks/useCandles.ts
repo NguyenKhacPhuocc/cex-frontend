@@ -26,12 +26,32 @@ const fetchCandles = async (
   timeframe: string
 ): Promise<Candle[]> => {
   try {
+    console.log(
+      `📊 Fetching candles for ${symbol} with timeframe ${timeframe}`
+    );
     const response = await apiClient.get<Candle[]>(
       `/api/candles/${symbol}?timeframe=${timeframe}&limit=500`
     );
+    console.log(
+      `📊 Received ${response.length} candles for ${symbol}:${timeframe}`
+    );
+    if (response.length === 0) {
+      console.warn(
+        `⚠️ No candles found for ${symbol}:${timeframe}. This might be because there's no historical data yet.`
+      );
+    }
     return response;
   } catch (error) {
-    console.error("Failed to fetch candles:", error);
+    console.error(
+      `❌ Failed to fetch candles for ${symbol}:${timeframe}:`,
+      error
+    );
+    const err = error as { response?: { status?: number } };
+    if (err?.response?.status === 400) {
+      console.error(
+        `❌ Bad request - check if timeframe "${timeframe}" is valid`
+      );
+    }
     return [];
   }
 };
@@ -54,20 +74,23 @@ export const useCandles = (symbol: string, timeframe: string) => {
     staleTime: 1000 * 60, // 1 minute
   });
 
-  // Initialize realtime candles with historical data on first load
+  // Initialize realtime candles with historical data on first load or when timeframe/symbol changes
   useEffect(() => {
-    if (
-      historicalCandles &&
-      historicalCandles.length > 0 &&
-      realtimeCandles.length === 0
-    ) {
+    if (historicalCandles) {
+      // Always initialize/update when historical data is available (even if empty array)
+      // This ensures chart updates properly when switching timeframes
       setRealtimeCandles(historicalCandles);
-      console.log(
-        `📊 Initialized with ${historicalCandles.length} historical candles`
-      );
+      if (historicalCandles.length > 0) {
+        console.log(
+          `📊 Initialized with ${historicalCandles.length} historical candles for ${symbol}:${timeframe}`
+        );
+      } else {
+        console.warn(
+          `⚠️ No historical candles for ${symbol}:${timeframe}. Chart will be empty until new trades create candles.`
+        );
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [historicalCandles]);
+  }, [historicalCandles, symbol, timeframe]);
 
   // Combine historical and real-time candles
   const candles =
@@ -184,9 +207,11 @@ export const useCandles = (symbol: string, timeframe: string) => {
   }, [socket, isConnected, symbol, timeframe, isSubscribed]);
 
   // Reset real-time candles when symbol or timeframe changes
+  // This ensures clean state before fetching new data
   useEffect(() => {
     setRealtimeCandles([]);
     setIsSubscribed(false);
+    console.log(`📊 Reset candles state for ${symbol}:${timeframe}`);
   }, [symbol, timeframe]);
 
   // Refetch historical data when symbol or timeframe changes

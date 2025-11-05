@@ -17,20 +17,17 @@ export default function Order() {
 
     const [mainTab, setMainTab] = useState<MainTab>("spot");
     const [orderTab, setOrderTab] = useState<OrderTab>("limit");
-    const [buyPrice, setBuyPrice] = useState<string>("100000");
-    const [buyAmount, setBuyAmount] = useState<string>("0");
-    const [sellPrice, setSellPrice] = useState<string>("100000");
-    const [sellAmount, setSellAmount] = useState<string>("0");
+    const [buyPrice, setBuyPrice] = useState<string>("");
+    const [buyAmount, setBuyAmount] = useState<string>("");
+    const [sellPrice, setSellPrice] = useState<string>("");
+    const [sellAmount, setSellAmount] = useState<string>("");
     const [buyTpSl, setBuyTpSl] = useState(false);
     const [sellTpSl, setSellTpSl] = useState(false);
     const [buySlider, setBuySlider] = useState<number>(0);
     const [sellSlider, setSellSlider] = useState<number>(0);
 
-    // console.log('📊 Trading Pair from Context:', { symbol, assetToken, baseToken });
-
     // 🔥 WebSocket connection status (shared across all components)
     const { isConnected } = useWebSocketContext();
-    // console.log('🔌 WebSocket status:', isConnected ? 'Connected ✅' : 'Disconnected ❌');
 
     // Fetch balances using React Query
     const balances = useAllBalances(isLogin);
@@ -240,14 +237,6 @@ export default function Order() {
         }
 
         try {
-            // console.log('🔴 Placing SELL order...', {
-            //     marketSymbol: symbol,
-            //     side: 'sell',
-            //     type: orderTab,
-            //     price: orderTab === 'limit' ? parseFloat(sellPrice) : undefined,
-            //     amount: parseFloat(sellAmount),
-            // });
-
             await placeOrderMutation.mutateAsync({
                 marketSymbol: symbol,
                 side: 'sell',
@@ -256,7 +245,6 @@ export default function Order() {
                 amount: parseFloat(sellAmount),
             });
 
-            // console.log('✅ SELL order placed successfully! Balances should refetch now...');
             toast.success(`✅ Đã đặt lệnh bán ${assetToken} thành công!`);
 
             // Reset form
@@ -269,7 +257,7 @@ export default function Order() {
     };
 
     return (
-        <div className="bg-white dark:bg-[#181A20] min-h-[350px] rounded-[8px] flex flex-col">
+        <div id="order" className="bg-white dark:bg-[#181A20] min-h-[350px] rounded-[8px] flex flex-col">
             {/* Main Tabs */}
             <div className="px-[16px] border-b border-gray-200 dark:border-[#373c43]">
                 <div className="flex gap-[24px]">

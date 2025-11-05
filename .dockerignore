@@ -1,0 +1,47 @@
+# Node modules
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Build artifacts
+.next
+out
+dist
+build
+
+# Git
+.git
+.gitignore
+
+# Development
+.env.local
+.env.*.local
+.DS_Store
+
+# Testing
+.jest
+coverage
+cypress/videos
+cypress/screenshots
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+.eslintignore
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.circleci
+
+
+# Documentation
+README.md
+CHANGELOG.md
+
+# Temporary files
+tmp
+temp
+*.log

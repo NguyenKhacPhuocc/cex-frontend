@@ -92,7 +92,7 @@ export default function DateFilters({ onDateRangeChange }: DateFiltersProps) {
                 onChange={(e) => setStartDate(e.target.value)}
                 disabled={dateFilter !== "Thời gian"}
                 className={`px-[12px] py-[4px] text-[12px] rounded-[4px] border border-[#E5E5E5] ${dateFilter !== "Thời gian"
-                    ? "text-[#9c9c9c] bg-gray-50 cursor-not-allowed"
+                    ? "text-[#9c9c9c] bg-gray-50"
                     : "text-black hover:border-[#F0B90B]"
                     }`}
             />
@@ -103,7 +103,7 @@ export default function DateFilters({ onDateRangeChange }: DateFiltersProps) {
                 onChange={(e) => setEndDate(e.target.value)}
                 disabled={dateFilter !== "Thời gian"}
                 className={`px-[12px] py-[4px] text-[12px] rounded-[4px] border border-[#E5E5E5] ${dateFilter !== "Thời gian"
-                    ? "text-[#9c9c9c] bg-gray-50 cursor-not-allowed"
+                    ? "text-[#9c9c9c] bg-gray-50"
                     : "text-black hover:border-[#F0B90B]"
                     }`}
             />

@@ -1,18 +1,11 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { IoIosArrowRoundUp } from "react-icons/io";
 import { useOrderBook } from "@/hooks/useOrderBook";
 import { useTicker } from "@/hooks/useTicker";
 import { useSpot } from "@/contexts/SpotContext";
+import { useMarketTrades } from "@/hooks/useTrades";
 
-/**
- * OrderBook Component - Real-time WebSocket Integration
- * 
- * Data từ Redis ZSET qua WebSocket:
- * - Backend sorted sẵn by price (asks descending, bids descending)
- * - Aggregate by price level
- * - Real-time updates khi có orders mới/matched
- */
 
 type ViewMode = "all" | "asks" | "bids";
 
@@ -25,8 +18,11 @@ export default function OrderBook() {
     const [viewMode, setViewMode] = useState<ViewMode>("all");
     const [precision, setPrecision] = useState(2);
     const [hoveredOrder, setHoveredOrder] = useState<HoveredOrder | null>(null);
+    const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null);
     const [isDarkMode, setIsDarkMode] = useState(false);
-    const { symbol } = useSpot();
+    const containerRef = useRef<HTMLDivElement>(null);
+    const { symbol, timeframe } = useSpot();
+    const { trades } = useMarketTrades(symbol);
 
     // Detect dark mode
     useEffect(() => {
@@ -114,9 +110,98 @@ export default function OrderBook() {
         return { totalBTC, totalUSDT };
     };
 
+    // Handle tooltip position calculation
+    const handleRowHover = (side: "ask" | "bid", index: number, element: HTMLDivElement | null) => {
+        if (element && containerRef.current) {
+            const rect = element.getBoundingClientRect();
+            const containerRect = containerRef.current.getBoundingClientRect();
+            setHoveredOrder({ side, index });
+            // Tính toán vị trí tooltip: bên phải của row, căn giữa theo chiều dọc
+            const rowTopRelative = rect.top - containerRect.top; // Top của row relative to container
+            const rowCenterY = rowTopRelative + rect.height / 2; // Center của row
+            const rowRightRelative = rect.right - containerRect.left; // Vị trí mép phải của row relative to container
+
+            setTooltipPosition({
+                top: rowCenterY,
+                left: rowRightRelative + 8, // 8px spacing từ mép phải của row
+            });
+        }
+    };
+
+    const handleRowLeave = () => {
+        setHoveredOrder(null);
+        setTooltipPosition(null);
+    };
+
+    // State để force re-render khi thời gian trôi qua
+    const [currentTime, setCurrentTime] = useState(Date.now());
+
+    // Chuyển đổi timeframe thành milliseconds
+    const getTimeframeMs = (tf: string): number => {
+        const timeframeMap: { [key: string]: number } = {
+            "1m": 60 * 1000,
+            "15m": 15 * 60 * 1000,
+            "30m": 30 * 60 * 1000,
+            "1h": 60 * 60 * 1000,
+            "4h": 4 * 60 * 60 * 1000,
+            "1d": 24 * 60 * 60 * 1000,
+            "1w": 7 * 24 * 60 * 60 * 1000,
+        };
+        return timeframeMap[tf] || 60 * 1000; // Default to 1 minute
+    };
+
+    // Update currentTime mỗi giây để tính toán realtime
+    useEffect(() => {
+        const timeframeMs = getTimeframeMs(timeframe);
+        // Update interval dựa trên timeframe: ngắn hơn thì update thường xuyên hơn
+        const updateInterval = Math.min(timeframeMs / 10, 1000); // Update tối đa mỗi giây, hoặc 10% của timeframe
+
+        const interval = setInterval(() => {
+            setCurrentTime(Date.now());
+        }, updateInterval);
+
+        return () => clearInterval(interval);
+    }, [timeframe]);
+
+    // Tính toán % mua/bán theo timeframe (realtime)
+    const { buyPercent, sellPercent } = useMemo(() => {
+        if (!trades || trades.length === 0) {
+            return { buyPercent: 50, sellPercent: 50 };
+        }
+
+        const timeframeMs = getTimeframeMs(timeframe);
+        const startTime = currentTime - timeframeMs;
+
+        // Filter trades trong timeframe
+        const filteredTrades = trades.filter((trade) => {
+            const tradeTime = typeof trade.timestamp === "string"
+                ? new Date(trade.timestamp).getTime()
+                : trade.timestamp.getTime();
+            return tradeTime >= startTime;
+        });
+
+        // Tính tổng volume mua và bán
+        let buyVolume = 0;
+        let sellVolume = 0;
+
+        filteredTrades.forEach((trade) => {
+            if (trade.side === "BUY") {
+                buyVolume += trade.amount;
+            } else {
+                sellVolume += trade.amount;
+            }
+        });
+
+        const totalVolume = buyVolume + sellVolume;
+        const buyPercent = totalVolume > 0 ? (buyVolume / totalVolume) * 100 : 50;
+        const sellPercent = totalVolume > 0 ? (sellVolume / totalVolume) * 100 : 50;
+
+        return { buyPercent, sellPercent };
+    }, [trades, timeframe, currentTime]);
+
     return (
-        <div className="relative w-[30%]">
-            <div className="relative bg-white dark:bg-[#181A20] rounded-[8px] flex flex-col overflow-visible h-full">
+        <div id="orderbook" className="relative w-[30%]">
+            <div ref={containerRef} className="relative bg-white dark:bg-[#181A20] rounded-[8px] flex flex-col overflow-visible h-full">
                 <div className=" px-[16px] py-[10px]  text-[14px] font-[500]  border-b border-[#F5F5F5] dark:border-[#373c43] dark:text-[#eaecef]">Sổ lệnh</div>
 
                 {/* Header */}
@@ -187,10 +272,10 @@ export default function OrderBook() {
                 </div>
 
                 {/* Order Book Content */}
-                <div className="flex-1 overflow-hidden flex flex-col text-[12px] relative h-full">
+                <div className="flex-1 flex flex-col text-[12px] relative h-full overflow-hidden">
                     {/* Asks (Sell Orders) - Display từ cao -> thấp */}
                     {(viewMode === "all" || viewMode === "asks") && (
-                        <div className="flex-1 h-full overflow-hidden relative align-text-bottom">
+                        <div className="flex-1 relative flex flex-col justify-end overflow-y-auto">
                             {sortedAsks.slice().map((ask, index) => {
                                 const isAfterHover = hoveredOrder?.side === "ask" && index >= hoveredOrder.index;
                                 const isHovered = hoveredOrder?.side === "ask" && index === hoveredOrder.index;
@@ -198,9 +283,9 @@ export default function OrderBook() {
                                 return (
                                     <div
                                         key={`ask-${index}`}
-                                        className="flex justify-between px-[12px] py-px relative"
-                                        onMouseEnter={() => setHoveredOrder({ side: "ask", index })}
-                                        onMouseLeave={() => setHoveredOrder(null)}
+                                        className="flex justify-between px-[12px] py-px relative cursor-pointer"
+                                        onMouseEnter={(e) => handleRowHover("ask", index, e.currentTarget)}
+                                        onMouseLeave={handleRowLeave}
                                         style={{
                                             borderTop: isHovered ? '1px dashed #707a8a' : 'none',
                                         }}
@@ -257,7 +342,7 @@ export default function OrderBook() {
 
                     {/* Bids (Buy Orders) - Display từ cao -> thấp (gần current price nhất ở trên) */}
                     {(viewMode === "all" || viewMode === "bids") && (
-                        <div className="flex-1 h-full overflow-hidden relative">
+                        <div className="flex-1 relative overflow-y-auto">
                             {sortedBids.map((bid, index) => {
                                 const isAfterHover = hoveredOrder?.side === "bid" && index <= hoveredOrder.index;
                                 const isHovered = hoveredOrder?.side === "bid" && index === hoveredOrder.index;
@@ -265,9 +350,9 @@ export default function OrderBook() {
                                 return (
                                     <div
                                         key={`bid-${index}`}
-                                        className="flex justify-between px-[12px] py-px relative"
-                                        onMouseEnter={() => setHoveredOrder({ side: "bid", index })}
-                                        onMouseLeave={() => setHoveredOrder(null)}
+                                        className="flex justify-between px-[12px] py-px relative cursor-pointer"
+                                        onMouseEnter={(e) => handleRowHover("bid", index, e.currentTarget)}
+                                        onMouseLeave={handleRowLeave}
                                         style={{
                                             borderBottom: isHovered ? '1px dashed #707a8a' : 'none',
                                         }}
@@ -295,66 +380,54 @@ export default function OrderBook() {
                     )}
                 </div>
 
-                {/* Tooltips outside of overflow-hidden container */}
-                {/* Tooltip for Ask */}
-                {hoveredOrder?.side === "ask" && (() => {
-                    const { totalBTC, totalUSDT } = calculateCumulative(hoveredOrder.index, "ask");
+                {/* Tooltip - Render outside overflow container */}
+                {hoveredOrder && tooltipPosition && (() => {
+                    const { totalBTC, totalUSDT } = calculateCumulative(hoveredOrder.index, hoveredOrder.side);
                     const avgPrice = totalBTC > 0 ? totalUSDT / totalBTC : 0;
-                    const rowHeight = 20; // Height of each row in pixels
-                    const headerHeight = 100; // Title + Header section
-                    const tooltipTop = headerHeight + hoveredOrder.index * rowHeight + rowHeight / 2;
-                    return (
-                        <div className="absolute right-[16px] bg-[#DFE1E5] shadow-lg rounded-[4px] p-[12px] min-w-[180px] z-50 border border-gray-200 dark:border-gray-700 pointer-events-none" style={{ top: `${tooltipTop}px`, right: "-180px", transform: 'translateY(-50%)' }}>
-                            {/* Arrow pointing to the hovered row */}
-                            <div className="absolute left-[-8px] top-[50%] transform -translate-y-1/2 w-0 h-0 border-t-8 border-t-transparent border-r-8 border-r-[#DFE1E5] border-b-8 border-b-transparent"></div>
-                            <div className="flex flex-col gap-[4px] text-[12px] relative">
-                                <div className="flex justify-between">
-                                    <span className="text-gray-900 ">Giá trung bình:</span>
-                                    <span className="font-medium text-gray-900 ">{formatPrice(avgPrice)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-900 ">Tổng BTC:</span>
-                                    <span className="font-medium text-gray-900 ">{formatAmount(totalBTC)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span className="text-gray-900 ">Tổng USDT:</span>
-                                    <span className="font-medium text-gray-900 ">{formatTotal(totalUSDT)}</span>
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })()}
 
-                {/* Tooltip for Bid */}
-                {hoveredOrder?.side === "bid" && (() => {
-                    const { totalBTC, totalUSDT } = calculateCumulative(hoveredOrder.index, "bid");
-                    const avgPrice = totalBTC > 0 ? totalUSDT / totalBTC : 0;
-                    const rowHeight = 20; // Height of each row in pixels
-                    const headerHeight = 100; // Title + Header section
-                    const asksHeight = viewMode === "all" ? sortedAsks.length * rowHeight : 0;
-                    const currentPriceHeight = 60; // Approximate height of current price section
-                    const tooltipTop = headerHeight + asksHeight + currentPriceHeight + hoveredOrder.index * rowHeight + rowHeight / 2 + 40;
                     return (
-                        <div className="absolute right-[16px] bg-[#DFE1E5] shadow-lg rounded-[4px] p-[12px] min-w-[180px] z-50 border border-gray-200 dark:border-gray-700 pointer-events-none" style={{ top: `${tooltipTop}px`, right: "-180px", transform: 'translateY(-50%)' }}>
-                            {/* Arrow pointing to the hovered row */}
-                            <div className="absolute left-[-8px] top-[50%] transform -translate-y-1/2 w-0 h-0 border-t-8 border-t-transparent border-r-8 border-r-[#DFE1E5] border-b-8 border-b-transparent"></div>
+                        <div
+                            className="absolute z-[9999] dark:bg-gray-200 bg-[#DFE1E5] dark:text-black text-gray-900 p-[12px] rounded-[4px] shadow-lg border border-gray-200 dark:border-gray-700 pointer-events-none min-w-[180px] whitespace-nowrap"
+                            style={{
+                                top: `${tooltipPosition.top}px`,
+                                left: `${tooltipPosition.left}px`,
+                                transform: 'translateY(-50%)',
+                            }}
+                        >
+                            {/* Arrow pointing to the row */}
+                            <div className="absolute left-[-5px] top-1/2 -translate-y-1/2 w-0 h-0 border-t-[5px] border-t-transparent border-b-[5px] border-b-transparent border-r-[5px] dark:border-r-gray-300 border-r-[#DFE1E5]"></div>
+                            <div className="absolute left-1 top-1/2 -translate-y-1/2 w-0 h-0 border-t-[5px] border-t-transparent border-b-[5px] border-b-transparent border-r-[5px] dark:border-r-gray-200 border-r-[#DFE1E5]"></div>
                             <div className="flex flex-col gap-[4px] text-[12px] relative">
                                 <div className="flex justify-between">
-                                    <span className="text-gray-900 ">Giá trung bình:</span>
-                                    <span className="font-medium text-gray-900 ">{formatPrice(avgPrice)}</span>
+                                    <span className="text-gray-900 dark:text-black">Giá trung bình:</span>
+                                    <span className="font-medium text-gray-900 dark:text-black">{formatPrice(avgPrice)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-gray-900 ">Tổng BTC:</span>
-                                    <span className="font-medium text-gray-900 ">{formatAmount(totalBTC)}</span>
+                                    <span className="text-gray-900 dark:text-black">Tổng BTC:</span>
+                                    <span className="font-medium text-gray-900 dark:text-black">{formatAmount(totalBTC)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-gray-900 ">Tổng USDT:</span>
-                                    <span className="font-medium text-gray-900">{formatTotal(totalUSDT)}</span>
+                                    <span className="text-gray-900 dark:text-black">Tổng USDT:</span>
+                                    <span className="font-medium text-gray-900 dark:text-black">{formatTotal(totalUSDT)}</span>
                                 </div>
                             </div>
                         </div>
                     );
                 })()}
+                <div className="px-4 py-3 text-xs">
+                    <div className="flex items-center gap-2">
+                        <span className="dark:text-white text-black">
+                            B <span className="text-green-400">{buyPercent.toFixed(1)}%</span>
+                        </span>
+                        <div className="flex-1 flex h-1 bg-gray-700 rounded-full overflow-hidden">
+                            <div className="bg-green-400" style={{ width: `${buyPercent}%` }} />
+                            <div className="bg-red-400" style={{ width: `${sellPercent}%` }} />
+                        </div>
+                        <span className="dark:text-white text-black">
+                            <span className="text-red-400">{sellPercent.toFixed(1)}%</span> S
+                        </span>
+                    </div>
+                </div>
             </div>
         </div>
     );

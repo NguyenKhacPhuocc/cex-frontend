@@ -14,14 +14,21 @@ export interface PlaceOrderRequest {
 }
 
 export interface PlaceOrderResponse {
-  id: number;
-  marketSymbol: string;
+  id: string; // UUID from backend
+  market?: {
+    id: string;
+    symbol: string;
+    baseAsset: string;
+    quoteAsset: string;
+  };
   side: string;
   type: string;
-  price: string;
-  amount: string;
+  price: number | null;
+  amount: number;
+  filled: number;
   status: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 // API function để đặt lệnh
@@ -36,8 +43,45 @@ export const usePlaceOrder = () => {
 
   return useMutation({
     mutationFn: placeOrder,
-    onSuccess: () => {
-      // console.log('✅ Order placed successfully');
+    onSuccess: (data: PlaceOrderResponse) => {
+      console.log("✅ Order placed successfully:", data);
+
+      // ✅ Optimistic update: Add order to cache immediately
+      // This ensures UI shows order instantly without waiting for refetch
+      queryClient.setQueryData<Order[]>(["orders", "open"], (oldData = []) => {
+        // Convert PlaceOrderResponse to Order format
+        const newOrder: Order = {
+          id: data.id,
+          userId: "", // Will be filled by refetch if needed
+          market: data.market || {
+            id: "",
+            symbol: "",
+            baseAsset: "",
+            quoteAsset: "",
+          },
+          side: data.side.toUpperCase() as "BUY" | "SELL",
+          type: data.type.toUpperCase() as "LIMIT" | "MARKET",
+          price: data.price,
+          amount: data.amount,
+          filled: data.filled || 0,
+          status: data.status.toUpperCase() as
+            | "OPEN"
+            | "FILLED"
+            | "CANCELLED"
+            | "PARTIALLY_FILLED",
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt || data.createdAt,
+        };
+
+        // Check if order already exists (avoid duplicates)
+        const exists = oldData.some((order) => order.id === newOrder.id);
+        if (exists) {
+          return oldData;
+        }
+
+        // Add new order at the beginning
+        return [newOrder, ...oldData];
+      });
 
       // Only invalidate spot balances to avoid rate limiting
       queryClient.invalidateQueries({
@@ -45,16 +89,11 @@ export const usePlaceOrder = () => {
         refetchType: "active",
       });
 
-      // Invalidate open orders to refresh the list
+      // Refetch open orders in background to get full order data (market info, etc.)
+      // But UI already shows the order from optimistic update above
       queryClient.invalidateQueries({
         queryKey: ["orders", "open"],
       });
-
-      // console.log('🔄 Spot balances invalidated and refetching...');
-
-      // Có thể invalidate thêm các queries khác nếu cần
-      // queryClient.invalidateQueries({ queryKey: ['orders'] });
-      // queryClient.invalidateQueries({ queryKey: ['trades'] });
     },
     onError: (error: Error) => {
       console.error("❌ Error placing order:", error);
@@ -111,6 +150,7 @@ const fetchOrderHistory = async (): Promise<Order[]> => {
  */
 export const useOpenOrders = (enabled: boolean = true) => {
   const { socket, isConnected } = useWebSocketContext();
+  const queryClient = useQueryClient();
   const [realtimeOrders, setRealtimeOrders] = useState<Order[]>([]);
 
   // Fetch initial orders
@@ -122,15 +162,20 @@ export const useOpenOrders = (enabled: boolean = true) => {
   });
 
   // Initialize realtime orders from fetched data
+  // Also sync with query cache to get optimistic updates from usePlaceOrder
   useEffect(() => {
-    if (data) {
+    // Get latest data from query cache (includes optimistic updates)
+    const cachedData = queryClient.getQueryData<Order[]>(["orders", "open"]);
+    const ordersToUse = cachedData || data || [];
+
+    if (ordersToUse.length > 0 || data) {
       console.log(
-        `📊 [useOpenOrders] Setting ${data.length} orders to state:`,
-        data
+        `📊 [useOpenOrders] Setting ${ordersToUse.length} orders to state:`,
+        ordersToUse
       );
-      setRealtimeOrders(data);
+      setRealtimeOrders(ordersToUse);
     }
-  }, [data]);
+  }, [data, queryClient]);
 
   // Listen for order updates via WebSocket with optimistic update
   useEffect(() => {
@@ -143,22 +188,48 @@ export const useOpenOrders = (enabled: boolean = true) => {
     }) => {
       console.log("📋 [WebSocket] Order updated event received:", data);
 
-      // ✅ Optimistic update: Remove order immediately if status is FILLED
-      if (data.status === "FILLED") {
-        setRealtimeOrders((prev) => {
-          const filtered = prev.filter((order) => order.id !== data.orderId);
+      // ✅ Optimistic update: Update order status immediately in cache and state
+      queryClient.setQueryData<Order[]>(["orders", "open"], (oldData = []) => {
+        if (data.status === "FILLED" || data.status === "CANCELLED") {
+          // Remove order immediately if filled or cancelled
+          const filtered = oldData.filter((order) => order.id !== data.orderId);
           console.log(
-            `🗑️ [Optimistic] Removed order ${data.orderId} from UI (status: ${data.status})`
+            `🗑️ [Optimistic] Removed order ${data.orderId} from cache (status: ${data.status})`
           );
           return filtered;
-        });
-      }
+        } else {
+          // Update order status for PARTIALLY_FILLED or other statuses
+          return oldData.map((order) => {
+            if (order.id === data.orderId) {
+              return { ...order, status: data.status as Order["status"] };
+            }
+            return order;
+          });
+        }
+      });
 
-      // Refetch to get updated data (partially filled orders need updated filled amount)
-      // Delay to ensure backend cache is cleared and DB is updated
-      setTimeout(() => {
+      // Also update state immediately
+      if (data.status === "FILLED" || data.status === "CANCELLED") {
+        setRealtimeOrders((prev) => {
+          const filtered = prev.filter((order) => order.id !== data.orderId);
+          return filtered;
+        });
+      } else if (data.status === "OPEN") {
+        // If order status is OPEN, refetch to get full order data
         refetch();
-      }, 500);
+      } else {
+        // For PARTIALLY_FILLED or other statuses, update state immediately
+        setRealtimeOrders((prev) => {
+          return prev.map((order) => {
+            if (order.id === data.orderId) {
+              return { ...order, status: data.status as Order["status"] };
+            }
+            return order;
+          });
+        });
+        // Refetch to get updated filled amount
+        refetch();
+      }
     };
 
     const handleTradeExecuted = (tradeData?: {
@@ -175,17 +246,9 @@ export const useOpenOrders = (enabled: boolean = true) => {
         tradeData
       );
 
-      // ✅ Optimistic update: Update orders immediately based on trade data
-      if (tradeData) {
-        // Note: We can't update filled amount optimistically without knowing which order
-        // So we'll refetch, but with minimal delay
-      }
-
-      // Refetch to get updated filled amounts and statuses
-      // Delay to ensure backend cache is cleared and DB is updated
-      setTimeout(() => {
-        refetch();
-      }, 500);
+      // Refetch immediately to get updated filled amounts and statuses
+      // No delay needed - backend already updated DB and cache
+      refetch();
     };
 
     socket.on("order:updated", handleOrderUpdate);
@@ -195,7 +258,7 @@ export const useOpenOrders = (enabled: boolean = true) => {
       socket.off("order:updated", handleOrderUpdate);
       socket.off("trade:executed", handleTradeExecuted);
     };
-  }, [socket, isConnected, enabled, refetch]);
+  }, [socket, isConnected, enabled, refetch, queryClient]);
 
   return {
     orders: realtimeOrders,
