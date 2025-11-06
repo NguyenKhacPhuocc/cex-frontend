@@ -11,9 +11,18 @@ import SpotFooter from "@/components/spot/SpotFooter";
 import { SpotProvider } from "@/contexts/SpotContext";
 import { useParams } from "next/navigation";
 import { useEffect } from "react";
+import { useTour } from "@/hooks/useTour";
+import { spotTourConfig } from "@/config/tourConfig";
 
 export default function SpotPage() {
     const { symbol } = useParams() as { symbol: string };
+
+    // Auto start tour lần đầu tiên
+    useTour({
+        config: spotTourConfig,
+        autoStart: true,
+        delay: 1000
+    });
 
     // Hide scrollbar for this page only
     useEffect(() => {

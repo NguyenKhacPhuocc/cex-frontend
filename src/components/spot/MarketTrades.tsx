@@ -58,7 +58,7 @@ export default function MarketTrades() {
     };
 
     return (
-        <div className="flex-1 bg-white dark:bg-[#181A20] rounded-[8px] flex flex-col">
+        <div id="market-trades" className="flex-1 bg-white dark:bg-[#181A20] rounded-[8px] flex flex-col">
             {/* Tabs */}
             <div className="px-[16px] pt-[12px] border-b border-gray-200 dark:border-[#373c43]">
                 <div className="flex gap-[24px]">

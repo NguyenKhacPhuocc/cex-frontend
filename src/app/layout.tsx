@@ -55,7 +55,38 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en" className="dark">
+        <html lang="en" suppressHydrationWarning>
+            <head>
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `
+                            (function() {
+                                try {
+                                    const theme = localStorage.getItem('theme');
+                                    if (theme === 'light') {
+                                        document.documentElement.classList.remove('dark');
+                                    } else if (theme === 'dark') {
+                                        document.documentElement.classList.add('dark');
+                                    } else {
+                                        // Nếu chưa có theme, check system preference
+                                        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                                        if (prefersDark) {
+                                            document.documentElement.classList.add('dark');
+                                            localStorage.setItem('theme', 'dark');
+                                        } else {
+                                            document.documentElement.classList.remove('dark');
+                                            localStorage.setItem('theme', 'light');
+                                        }
+                                    }
+                                } catch (e) {
+                                    // Fallback to dark nếu có lỗi
+                                    document.documentElement.classList.add('dark');
+                                }
+                            })();
+                        `,
+                    }}
+                />
+            </head>
             <body className={`${binanceNova.className} ${binanceNova.variable} bg-black`}>
                 <QueryProvider>
                     <WebSocketProvider>

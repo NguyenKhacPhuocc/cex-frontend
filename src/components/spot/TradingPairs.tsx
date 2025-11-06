@@ -209,7 +209,7 @@ export default function TradingPairs() {
     const tabs: TabType[] = ["ALL", "USDT", "ETH", "BNB", "BTC", "ALTS", "FIAT"];
 
     return (
-        <div className="flex-1 bg-white dark:bg-[#181A20] rounded-[8px] flex flex-col">
+        <div id="trading-pairs" className="flex-1 bg-white dark:bg-[#181A20] rounded-[8px] flex flex-col">
             {/* Search */}
             <div className="px-[16px] pt-[12px] pb-[8px]">
                 <div className="relative">

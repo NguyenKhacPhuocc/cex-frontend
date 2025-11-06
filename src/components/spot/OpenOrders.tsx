@@ -25,7 +25,7 @@ export default function OpenOrders() {
     const [sortByTime] = useState("Sắp xếp theo thời gian đặt lệnh"); // TODO: Implement dropdown later
     const tabsRef = useRef<{ [key: string]: HTMLButtonElement | null }>({});
 
-    // 🔥 Fetch data based on active tab
+    // Fetch data based on active tab
     const { orders: openOrders, isLoading: isLoadingOpenOrders } = useOpenOrders(isLogin && activeTab === "orders");
     const { data: orderHistory, isLoading: isLoadingHistory } = useOrderHistory(isLogin && activeTab === "history");
     const { data: tradeHistory, isLoading: isLoadingTradeHistory } = useAllUserTrades(isLogin && activeTab === "trade-history");
@@ -35,7 +35,6 @@ export default function OpenOrders() {
         if (!hideOtherPairs || !symbol) return openOrders;
         return openOrders.filter(order => order.market.symbol === symbol);
     }, [openOrders, hideOtherPairs, symbol]);
-    console.log(filteredOpenOrders)
     const filteredOrderHistory = useMemo(() => {
         if (!hideOtherPairs || !symbol) return orderHistory || [];
         return (orderHistory || []).filter(order => order.market.symbol === symbol);
@@ -139,35 +138,73 @@ export default function OpenOrders() {
         return trimmedDecimal ? `${integerPart},${trimmedDecimal}` : integerPart;
     };
 
-    const formatDate = (date: string | Date | undefined): string => {
-        if (!date) return '--:--:--';
+    const formatDate = (date: string | Date | undefined | unknown): string => {
+        if (!date) {
+            return '--/--/----';
+        }
+
+        try {
+            // Handle object rỗng {} - fallback cho cache cũ
+            if (typeof date === 'object' && date !== null && !(date instanceof Date)) {
+                if (Object.keys(date).length === 0) {
+                    return '--/--/----';
+                }
+                return '--/--/----';
+            }
+
+            // Handle different date formats
+            let d: Date;
+
+            if (date instanceof Date) {
+                d = date;
+            } else if (typeof date === 'string') {
+                // Skip if empty string
+                if (date.trim() === '') {
+                    return '--/--/----';
+                }
+                // Parse ISO string (backend đã serialize thành ISO string)
+                d = new Date(date);
+
+                // If invalid, try parsing as timestamp (fallback)
+                if (isNaN(d.getTime()) && !isNaN(Number(date))) {
+                    d = new Date(Number(date));
+                }
+            } else {
+                return '--/--/----';
+            }
+
+            // Check if date is valid
+            if (isNaN(d.getTime())) {
+                return '--/--/----';
+            }
+
+            // Format manually to ensure consistent output: dd/MM/yyyy
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+
+            return `${day}/${month}/${year}`;
+        } catch (error) {
+            console.error('formatDate: Error formatting date:', date, 'error:', error);
+            return '--/--/----';
+        }
+    };
+
+    const formatTime = (date: string | Date | undefined): string => {
+        if (!date) return '--/--/---- --:--:--';
         try {
             const d = new Date(date);
-            if (isNaN(d.getTime())) return '--:--:--';
+            if (isNaN(d.getTime())) return '--/--/---- --:--:--';
             return d.toLocaleString('vi-VN', {
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit',
-            });
-        } catch {
-            return '--:--:--';
-        }
-    };
-
-    const formatTime = (date: string | Date | undefined): string => {
-        if (!date) return '--:--:--';
-        try {
-            const d = new Date(date);
-            if (isNaN(d.getTime())) return '--:--:--';
-            return d.toLocaleTimeString('vi-VN', {
-                hour: '2-digit',
-                minute: '2-digit',
                 second: '2-digit',
             });
         } catch {
-            return '--:--:--';
+            return '--/--/---- --:--:--';
         }
     };
 
@@ -203,7 +240,7 @@ export default function OpenOrders() {
     }, [activeTab]);
 
     return (
-        <div className="min-h-[560px] h-full bg-white dark:bg-[#181A20] rounded-[8px] flex flex-col">
+        <div id="open-orders" className="min-h-[560px] h-full bg-white dark:bg-[#181A20] rounded-[8px] flex flex-col">
             {/* Tabs */}
             <div className="flex items-center justify-between px-[16px] border-b border-[#F5F5F5] dark:border-[#373c43]">
                 <div className="flex items-center gap-[24px] h-[42px] relative">
@@ -417,9 +454,9 @@ export default function OpenOrders() {
                                                 </td>
                                             </tr>
                                         ) : (
-                                            filteredTradeHistory.map((trade) => (
+                                            filteredTradeHistory.map((trade, index) => (
                                                 <tr key={trade.id} className="border-t border-[#F5F5F5] hover:bg-gray-50 dark:border-[#373c43] dark:text-[#eaecef] dark:hover:bg-gray-800">
-                                                    <td className="px-[12px] py-[12px] text-[12px]">{trade.id}</td>
+                                                    <td className="px-[12px] py-[12px] text-[12px]">{filteredTradeHistory.length - index}</td>
                                                     <td className="px-[12px] py-[12px] text-[12px]">{formatTime(trade.timestamp)}</td>
                                                     <td className="px-[12px] py-[12px] text-[12px]">{trade.market.replace('_', '/')}</td>
                                                     <td className={`px-[12px] py-[12px] text-[12px] ${getSideColor(trade.side)}`}>{trade.side.toUpperCase()}</td>

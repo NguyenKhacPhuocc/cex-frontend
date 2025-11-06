@@ -160,7 +160,7 @@ export default function Ticker() {
 
     return (
         <>
-            <div className="h-[56px] bg-white dark:bg-[#181A20] rounded-[8px] flex px-[16px] py-[4px]">
+            <div id="ticker" className="h-[56px] bg-white dark:bg-[#181A20] rounded-[8px] flex px-[16px] py-[4px]">
                 <div className="w-[280px] flex gap-[8px] text-[#9c9c9c]">
                     <div className="flex justify-center items-center cursor-pointer" onClick={toggleFavorite}>
                         {isFavorite ? (

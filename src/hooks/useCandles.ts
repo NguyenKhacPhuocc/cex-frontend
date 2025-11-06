@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import { apiClient } from "@/lib/api-client";
 
@@ -58,8 +58,18 @@ const fetchCandles = async (
 
 export const useCandles = (symbol: string, timeframe: string) => {
   const { socket, isConnected } = useWebSocketContext();
+  const queryClient = useQueryClient();
   const [realtimeCandles, setRealtimeCandles] = useState<Candle[]>([]);
   const [isSubscribed, setIsSubscribed] = useState(false);
+
+  // Invalidate cache when symbol or timeframe changes to force fresh fetch
+  useEffect(() => {
+    if (symbol && timeframe) {
+      // Remove old cache entries for this query key to force fresh fetch
+      queryClient.removeQueries({ queryKey: ["candles", symbol, timeframe] });
+      console.log(`📊 Invalidated cache for ${symbol}:${timeframe}`);
+    }
+  }, [symbol, timeframe, queryClient]);
 
   // Fetch initial historical candles
   const {
@@ -71,12 +81,26 @@ export const useCandles = (symbol: string, timeframe: string) => {
     queryKey: ["candles", symbol, timeframe],
     queryFn: () => fetchCandles(symbol, timeframe),
     enabled: !!symbol && !!timeframe,
-    staleTime: 1000 * 60, // 1 minute
+    staleTime: 0, // Always consider data stale - force refetch on mount
+    gcTime: 0, // Don't cache old data (previously cacheTime)
+    refetchOnMount: "always", // Always refetch when component mounts (e.g., navigating to spot page)
+    refetchOnWindowFocus: false, // Don't refetch on window focus (we have WebSocket for real-time updates)
   });
 
+  // Track current symbol/timeframe to detect changes
+  const [currentSymbolTimeframe, setCurrentSymbolTimeframe] =
+    useState<string>("");
+  // Use ref to track current subscription key for WebSocket updates
+  const subscriptionKeyRef = useRef<string>("");
+
   // Initialize realtime candles with historical data on first load or when timeframe/symbol changes
+  // This effect runs when historicalCandles changes (new data fetched) or when symbol/timeframe changes
   useEffect(() => {
-    if (historicalCandles) {
+    const newKey = `${symbol}:${timeframe}`;
+
+    // Only update if we have historical data and it's not loading
+    // AND it matches the current symbol/timeframe (to avoid showing stale data)
+    if (historicalCandles && !isLoading && newKey === currentSymbolTimeframe) {
       // Always initialize/update when historical data is available (even if empty array)
       // This ensures chart updates properly when switching timeframes
       setRealtimeCandles(historicalCandles);
@@ -90,11 +114,34 @@ export const useCandles = (symbol: string, timeframe: string) => {
         );
       }
     }
-  }, [historicalCandles, symbol, timeframe]);
+  }, [historicalCandles, symbol, timeframe, isLoading, currentSymbolTimeframe]);
+
+  // Update current symbol/timeframe key when they change
+  useEffect(() => {
+    const newKey = `${symbol}:${timeframe}`;
+    if (newKey !== currentSymbolTimeframe) {
+      setCurrentSymbolTimeframe(newKey);
+      // Update subscription key ref
+      subscriptionKeyRef.current = newKey;
+      // Clear realtime candles immediately when symbol/timeframe changes
+      setRealtimeCandles([]);
+      console.log(
+        `📊 Symbol/timeframe changed to ${newKey}, cleared realtime candles`
+      );
+    }
+  }, [symbol, timeframe, currentSymbolTimeframe]);
 
   // Combine historical and real-time candles
+  // Only return data if it matches current symbol/timeframe to avoid stale data
   const candles =
-    realtimeCandles.length > 0 ? realtimeCandles : historicalCandles || [];
+    currentSymbolTimeframe === `${symbol}:${timeframe}` &&
+    realtimeCandles.length > 0
+      ? realtimeCandles
+      : currentSymbolTimeframe === `${symbol}:${timeframe}` &&
+        !isLoading &&
+        historicalCandles
+      ? historicalCandles
+      : [];
 
   // WebSocket subscription effect
   useEffect(() => {
@@ -109,11 +156,30 @@ export const useCandles = (symbol: string, timeframe: string) => {
       console.log(`📊 Subscribed to candle updates for ${symbol}:${timeframe}`);
     }
 
+    // Update subscription key ref
+    const subscribeKey = `${symbol}:${timeframe}`;
+    subscriptionKeyRef.current = subscribeKey;
+
     // Handle candle:update events
     const handleCandleUpdate = (candle: CandleDto) => {
+      // Check if we're still subscribed to the same symbol/timeframe
+      // Use ref to get the latest value, not the closure value
+      const currentSubscriptionKey = subscriptionKeyRef.current;
+      if (currentSubscriptionKey !== subscribeKey) {
+        console.log(
+          `⏭️ Skipping WebSocket update - symbol/timeframe changed from ${subscribeKey} to ${currentSubscriptionKey}`
+        );
+        return;
+      }
+
       console.log("📊 [WebSocket] Candle update received:", candle);
 
       setRealtimeCandles((prev) => {
+        // Double-check subscription is still valid (in case it changed during setState)
+        // Use ref to get the latest value
+        if (subscriptionKeyRef.current !== subscribeKey) {
+          return prev;
+        }
         // Ensure time is a number for comparison
         const candleTime =
           typeof candle.time === "number" ? candle.time : Number(candle.time);
@@ -206,12 +272,11 @@ export const useCandles = (symbol: string, timeframe: string) => {
     };
   }, [socket, isConnected, symbol, timeframe, isSubscribed]);
 
-  // Reset real-time candles when symbol or timeframe changes
-  // This ensures clean state before fetching new data
+  // Reset subscription flag when symbol or timeframe changes
+  // realtimeCandles is already cleared in the currentSymbolTimeframe effect above
   useEffect(() => {
-    setRealtimeCandles([]);
     setIsSubscribed(false);
-    console.log(`📊 Reset candles state for ${symbol}:${timeframe}`);
+    console.log(`📊 Reset subscription flag for ${symbol}:${timeframe}`);
   }, [symbol, timeframe]);
 
   // Refetch historical data when symbol or timeframe changes

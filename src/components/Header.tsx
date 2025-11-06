@@ -17,51 +17,48 @@ import toast from "react-hot-toast";
 import api from "@/lib/axios";
 import { useEffect, useState } from "react";
 import { TbArrowBarToDown } from "react-icons/tb";
+import { startTour } from "@/lib/tourUtils";
+import { spotTourConfig, futuresTourConfig } from "@/config/tourConfig";
+import { usePathname } from "next/navigation";
 
 export default function Header() {
     const { user, isLogin, isLoading, refetch } = useAuth();
     const [darkMode, setDarkMode] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const pathname = usePathname();
+    const isSpotPage = pathname?.startsWith('/spot');
 
     const handleLogout = async () => {
         try {
             // Call logout API - Backend sẽ clear httpOnly cookies
             await api.post('/api/auth/logout');
 
-            // ✅ Cookies đã được clear bởi backend - KHÔNG cần localStorage!
-
             // Refresh auth state
             await refetch();
 
             toast.success('Đăng xuất thành công!');
-            // ✅ KHÔNG redirect - User ở lại trang hiện tại
         } catch (error) {
             console.error('Logout error:', error);
             toast.error('Đăng xuất thất bại!');
         }
     };
-    // console.log("isLogin: " + isLogin)
 
     useEffect(() => {
         setMounted(true);
+        // Đồng bộ state với theme hiện tại từ localStorage hoặc DOM
+        const theme = localStorage.getItem("theme");
         const isDark =
-            document.documentElement.classList.contains("dark") ||
-            localStorage.theme === "dark" ||
-            (!("theme" in localStorage) &&
-                window.matchMedia("(prefers-color-scheme: dark)").matches);
+            theme === "dark" ||
+            (theme === null && document.documentElement.classList.contains("dark"));
 
         if (isDark) {
-            document.documentElement.classList.add("dark");
             setDarkMode(true);
         } else {
-            document.documentElement.classList.remove("dark");
             setDarkMode(false);
         }
     }, []);
 
     const toggleDarkMode = () => {
-        // setOverlay(true);
-        // setTimeout(() => {
         const html = document.documentElement;
         if (html.classList.contains("dark")) {
             html.classList.remove("dark");
@@ -72,8 +69,6 @@ export default function Header() {
             localStorage.setItem("theme", "dark");
             setDarkMode(true);
         }
-        // setOverlay(false);
-        // }, 300);
     };
 
     if (!mounted) return null;
@@ -85,7 +80,7 @@ export default function Header() {
                     <Link href={'/'} className="pr-[12px] h-[64px] flex justify-center items-center">
                         <Image src="/binance-h.png" alt="" width={120} height={64} />
                     </Link>
-                    <ul className="flex text-[14px] font-[500]">
+                    <ul className="flex text-[14px] font-medium">
                         <li className="flex justify-center items-center px-[12px] h-[64px] hover:text-[#F0B90B] hover:cursor-pointer">
                             Mua Crypto
                         </li>
@@ -186,7 +181,7 @@ export default function Header() {
                                 </div>
 
                                 {/* Dropdown on hover login*/}
-                                <div className="absolute top-full right-0 hidden group-hover:block bg-white dark:bg-black/80 dark:backdrop-blur-md shadow-lg rounded-lg w-64 z-[999] py-2 border border-gray-200 dark:border-gray-800">
+                                <div className="absolute top-full right-0 hidden group-hover:block bg-white dark:bg-[#202630] dark:backdrop-blur-md shadow-lg rounded-lg w-64 z-999 py-2 border border-gray-200 dark:border-gray-800">
                                     <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-900">
                                         <p className="text-[12px] text-gray-500 dark:text-gray-200">Email</p>
                                         <p className="text-[14px] font-medium text-gray-900 dark:text-white/90">{user?.email}</p>
@@ -224,20 +219,32 @@ export default function Header() {
                     <div className="text-[22px] py-[20px] px-[8px] hover:text-[#F0B90B] hover:cursor-pointer">
                         <AiOutlineGlobal />
                     </div>
-                    <div className="text-[22px] py-[20px] px-[8px] hover:text-[#F0B90B] hover:cursor-pointer">
-                        <GiSpellBook />
-                    </div>
-
-                    {/* User Icon với Dropdown */}
-                    {/* <div className="group relative flex items-center py-[20px] px-[8px] hover:text-[#F0B90B] hover:cursor-pointer">
-                        <div className="text-[22px] py-[20px] px-[8px] hover:text-[#F0B90B] hover:cursor-pointer">
+                    {/* Guided Tour Icon với Dropdown */}
+                    <div className="group relative flex items-center py-[20px] px-[8px] hover:text-[#F0B90B] hover:cursor-pointer">
+                        <div id="guild" className="text-[22px]">
                             <GiSpellBook />
-                        </div> */}
-                        {/* Dropdown on hover login
-                        {/* <div className="absolute top-full right-0 hidden group-hover:block bg-white dark:bg-black/80 dark:backdrop-blur-md shadow-lg rounded-lg w-64 z-[999] py-2 border border-gray-200 dark:border-gray-800">
-                            <GuidedTour />
                         </div>
-                    </div> */}
+
+                        {/* Dropdown on hover */}
+                        <div className="absolute top-full right-0 hidden group-hover:block bg-white dark:bg-[#202630] dark:backdrop-blur-md shadow-lg rounded-lg w-64 z-999 py-2 border border-gray-200 dark:border-gray-800">
+                            <button
+                                onClick={() => startTour(spotTourConfig)}
+                                className="w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 text-gray-900 dark:text-white/90 transition-colors hover:cursor-pointer"
+                            >
+                                <GiSpellBook className="text-[18px] text-[#FCD535]" />
+                                <span className="text-[14px] font-medium">Hướng dẫn Spot</span>
+                            </button>
+                            {!isSpotPage && (
+                                <button
+                                    onClick={() => startTour(futuresTourConfig)}
+                                    className="w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 text-gray-900 dark:text-white/90 transition-colors hover:cursor-pointer"
+                                >
+                                    <GiSpellBook className="text-[18px] text-[#FCD535]" />
+                                    <span className="text-[14px] font-medium">Hướng dẫn Futures</span>
+                                </button>
+                            )}
+                        </div>
+                    </div>
                     <div className="text-[22px] py-[20px] px-[8px] hover:text-[#F0B90B] hover:cursor-pointer">
                         <RiSettingsLine />
                     </div>

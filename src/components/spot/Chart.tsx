@@ -5,8 +5,9 @@ import { createChart, ColorType, IChartApi, CandlestickSeries, HistogramSeries }
 import { useSpot } from '@/contexts/SpotContext';
 import { useCandles } from '@/hooks/useCandles';
 
+// ==================== Types ====================
 interface CandleData {
-    time: number; // Unix timestamp in seconds
+    time: number;
     open: number;
     high: number;
     low: number;
@@ -15,7 +16,7 @@ interface CandleData {
 }
 
 interface VolumeData {
-    time: number; // Unix timestamp in seconds
+    time: number;
     value: number;
     color: string;
 }
@@ -24,9 +25,99 @@ interface ChartProps {
     chartData?: CandleData[];
 }
 
+// ==================== Constants ====================
+const MAIN_TABS = [
+    { id: "chart", label: "Đồ thị" },
+    { id: "info", label: "Thông tin" },
+    { id: "data", label: "Dữ liệu Giao dịch" },
+    { id: "square", label: "Square" },
+] as const;
 
+const CHART_TABS = [
+    { id: "original", label: "Gốc" },
+    { id: "tradingview", label: "Trading View" },
+    { id: "detail", label: "Chi tiết" },
+] as const;
+
+const TRADING_VIEW_TIMEFRAMES = [
+    { label: "Thời gian", value: "time" },
+    { label: "1m", value: "1m" },
+    { label: "5m", value: "5m" },
+    { label: "15m", value: "15m" },
+    { label: "30m", value: "30m" },
+    { label: "1h", value: "1h" },
+    { label: "4h", value: "4h" },
+    { label: "1ngày", value: "1d" },
+    { label: "1Tuần", value: "1w" },
+] as const;
+
+const ORIGINAL_TIMEFRAMES = [
+    { label: "Thời gian", value: "time" },
+    { label: "1m", value: "1m" },
+    { label: "5m", value: "5m" },
+    { label: "15m", value: "15m" },
+    { label: "30m", value: "30m" },
+    { label: "1h", value: "1h" },
+    { label: "4h", value: "4h" },
+    { label: "1ngày", value: "1d" },
+    { label: "1Tuần", value: "1w" },
+] as const;
+
+// ==================== Helper Functions ====================
+const convertToUTC7 = (utcTime: number): number => {
+    return utcTime + (7 * 3600);
+};
+
+const convertTimeToNumber = (time: any): number => {
+    if (typeof time === 'number' && !isNaN(time)) return time;
+    if (time instanceof Date) return Math.floor(time.getTime() / 1000);
+    if (typeof time === 'string') {
+        const num = Number(time);
+        if (!isNaN(num)) return num;
+        const date = new Date(time);
+        if (!isNaN(date.getTime())) return Math.floor(date.getTime() / 1000);
+    }
+    return 0;
+};
+
+const hexToRgba = (hex: string, opacity: number): string => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
+
+const getTradingViewInterval = (tf: string): string => {
+    const intervalMap: { [key: string]: string } = {
+        "1m": "1",
+        "5m": "5",
+        "15m": "15",
+        "30m": "30",
+        "1h": "60",
+        "4h": "240",
+        "1d": "D",
+        "1w": "W",
+        "time": "60",
+    };
+    return intervalMap[tf] || "60";
+};
+
+const getVolumeColor = (item: CandleData, isDarkMode: boolean): string => {
+    const baseColor = item.close >= item.open
+        ? (isDarkMode ? '#26A69A' : '#089981')
+        : (isDarkMode ? '#EF5350' : '#F23645');
+    return hexToRgba(baseColor, 0.5);
+};
+
+const getCandleColors = (isDarkMode: boolean) => ({
+    upColor: isDarkMode ? '#26A69A' : '#089981',
+    downColor: isDarkMode ? '#EF5350' : '#F23645',
+});
+
+// ==================== Component ====================
 export default function Chart({ chartData }: ChartProps) {
-    const { symbol } = useSpot();
+    const { symbol, timeframe, setTimeframe } = useSpot();
+    const { candles: realCandles, isLoading: candlesLoading } = useCandles(symbol, timeframe);
 
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const resizeHandleRef = useRef<HTMLDivElement>(null);
@@ -34,26 +125,17 @@ export default function Chart({ chartData }: ChartProps) {
     const chartRef = useRef<IChartApi | null>(null);
     const candleSeriesRef = useRef<any>(null);
     const volumeSeriesRef = useRef<any>(null);
-    const lastUpdateTimeRef = useRef<number>(0); // Track last updated candle time
-    const lastDataHashRef = useRef<string>(''); // Track data hash to detect significant changes (timeframe changes)
-    const lastTimeframeRef = useRef<string>(''); // Track last timeframe to reset hash on change
-
-    // Helper function to convert UTC time to UTC+7 (Vietnam timezone)
-    // If data from backend is in UTC, this converts it to UTC+7
-    // Note: lightweight-charts uses UTC internally, so we adjust the display timezone
-    const convertToUTC7 = (utcTime: number): number => {
-        // UTC+7 = UTC + 7 hours = UTC + 7 * 3600 seconds
-        return utcTime + (7 * 3600);
-    };
+    const lastUpdateTimeRef = useRef<number>(0);
+    const lastDataHashRef = useRef<string>('');
+    const lastTimeframeRef = useRef<string>('');
 
     const [activeMainTab, setActiveMainTab] = useState("chart");
     const [activeChartTab, setActiveChartTab] = useState("original");
-    const { timeframe, setTimeframe } = useSpot();
     const [isDarkMode, setIsDarkMode] = useState(false);
-    const [candleHeight, setCandleHeight] = useState(80); // Percentage of total height (increased from 70% to make volume smaller)
+    const [candleHeight, setCandleHeight] = useState(80);
     const [isResizing, setIsResizing] = useState(false);
+    const [isChartReady, setIsChartReady] = useState(false);
 
-    // Apply cursor style when resizing
     useEffect(() => {
         if (isResizing) {
             document.body.style.cursor = 'row-resize';
@@ -69,67 +151,22 @@ export default function Chart({ chartData }: ChartProps) {
         };
     }, [isResizing]);
 
-    // Fetch real-time candles from backend
-    const { candles: realCandles } = useCandles(symbol, timeframe);
-
-    // console.log('📈 Chart using symbol from Context:', { symbol, assetToken, baseToken });
-
-    const mainTabs = [
-        { id: "chart", label: "Đồ thị" },
-        { id: "info", label: "Thông tin" },
-        { id: "data", label: "Dữ liệu Giao dịch" },
-        { id: "square", label: "Square" },
-    ];
-
-    const chartTabs = [
-        { id: "original", label: "Gốc" },
-        { id: "tradingview", label: "Trading View" },
-        { id: "detail", label: "Chi tiết" },
-    ];
-
-    // Timeframes for TradingView tab (no 1s, but has 1m, 5m, 30m)
-    const tradingViewTimeframes = [
-        { label: "Thời gian", value: "time" },
-        { label: "1m", value: "1m" },
-        { label: "5m", value: "5m" },
-        { label: "15m", value: "15m" },
-        { label: "30m", value: "30m" },
-        { label: "1h", value: "1h" },
-        { label: "4h", value: "4h" },
-        { label: "1ngày", value: "1d" },
-        { label: "1Tuần", value: "1w" },
-    ];
-
-    // Timeframes for Original chart tab (has 1s)
-    const originalTimeframes = [
-        { label: "Thời gian", value: "time" },
-        // { label: "1s", value: "1s" },
-        { label: "1m", value: "1m" },
-        { label: "5m", value: "5m" },
-        { label: "15m", value: "15m" },
-        { label: "30m", value: "30m" },
-        { label: "1h", value: "1h" },
-        { label: "4h", value: "4h" },
-        { label: "1ngày", value: "1d" },
-        { label: "1Tuần", value: "1w" },
-    ];
-
-    // Get timeframes based on active chart tab
     const getTimeframes = () => {
-        return activeChartTab === "tradingview" ? tradingViewTimeframes : originalTimeframes;
+        return activeChartTab === "tradingview" ? TRADING_VIEW_TIMEFRAMES : ORIGINAL_TIMEFRAMES;
     };
 
-    // Detect dark mode
+    const handleTimeframeChange = (tf: string) => {
+        if (tf === "time") return;
+        setTimeframe(tf);
+    };
+
+    // Detect và theo dõi dark mode changes
     useEffect(() => {
         const checkDarkMode = () => {
             const isDark = document.documentElement.classList.contains("dark");
             setIsDarkMode(isDark);
         };
-
-        // Check on mount
         checkDarkMode();
-
-        // Watch for changes
         const observer = new MutationObserver(checkDarkMode);
         observer.observe(document.documentElement, {
             attributes: true,
@@ -139,9 +176,106 @@ export default function Chart({ chartData }: ChartProps) {
         return () => observer.disconnect();
     }, []);
 
-    // Init Chart gốc (lightweight-charts) - chỉ khi đang ở tab "original"
+    // Update chart colors khi dark mode thay đổi (không recreate chart để giữ data)
     useEffect(() => {
-        // Always cleanup first if chart exists
+        if (!chartRef.current || activeChartTab !== "original") return;
+
+        // Update chart layout options
+        chartRef.current.applyOptions({
+            layout: {
+                textColor: isDarkMode ? "#D1D4DC" : "#1E1E1E",
+                background: {
+                    type: ColorType.Solid,
+                    color: isDarkMode ? '#181A20' : '#FFFFFF'
+                },
+                fontSize: 12,
+            },
+            grid: {
+                vertLines: {
+                    color: isDarkMode ? '#2B2B43' : '#E0E3EB',
+                    style: 2,
+                    visible: true,
+                },
+                horzLines: {
+                    color: isDarkMode ? '#2B2B43' : '#E0E3EB',
+                    style: 2,
+                    visible: true,
+                },
+            },
+            crosshair: {
+                mode: 1,
+                vertLine: {
+                    color: isDarkMode ? '#758696' : '#758696',
+                    style: 0,
+                    labelBackgroundColor: isDarkMode ? '#131722' : '#FFFFFF',
+                },
+                horzLine: {
+                    color: isDarkMode ? '#758696' : '#758696',
+                    style: 0,
+                    labelBackgroundColor: isDarkMode ? '#131722' : '#FFFFFF',
+                },
+            },
+            rightPriceScale: {
+                borderColor: isDarkMode ? "#2B2B43" : "#E0E3EB",
+            },
+            leftPriceScale: {
+                borderColor: isDarkMode ? "#2B2B43" : "#E0E3EB",
+            },
+            timeScale: {
+                borderColor: isDarkMode ? "#2B2B43" : "#E0E3EB",
+            },
+        });
+
+        // Update candlestick series colors
+        if (candleSeriesRef.current) {
+            const colors = getCandleColors(isDarkMode);
+            candleSeriesRef.current.applyOptions({
+                ...colors,
+                wickUpColor: colors.upColor,
+                wickDownColor: colors.downColor,
+            });
+        }
+
+        // Update volume series baseline color
+        if (volumeSeriesRef.current) {
+            volumeSeriesRef.current.applyOptions({
+                baseLineColor: isDarkMode ? '#666666' : '#CCCCCC',
+            });
+
+            if (realCandles.length > 0) {
+                const dataWithUTC7Time = realCandles.map((candle) => ({
+                    ...candle,
+                    time: convertToUTC7(convertTimeToNumber(candle.time)),
+                }));
+
+                const volumeData: VolumeData[] = dataWithUTC7Time.map((item) => ({
+                    time: convertTimeToNumber(item.time),
+                    value: Math.max(0, item.volume || 0),
+                    color: getVolumeColor(item, isDarkMode),
+                }));
+
+                if (volumeData.length > 0) {
+                    const firstTime = volumeData[0].time;
+                    const lastTime = volumeData[volumeData.length - 1].time;
+                    volumeData.unshift({
+                        time: firstTime - 1,
+                        value: 0,
+                        color: 'transparent',
+                    });
+                    volumeData.push({
+                        time: lastTime + 1,
+                        value: 0,
+                        color: 'transparent',
+                    });
+                }
+
+                volumeSeriesRef.current.setData(volumeData);
+            }
+        }
+    }, [isDarkMode, activeChartTab, realCandles]);
+
+    // Khởi tạo chart (lightweight-charts) - chỉ tạo 1 lần, không recreate khi dark mode thay đổi
+    useEffect(() => {
         const cleanup = () => {
             if (chartRef.current) {
                 chartRef.current.remove();
@@ -152,10 +286,11 @@ export default function Chart({ chartData }: ChartProps) {
         };
 
         if (activeChartTab !== "original" || !chartContainerRef.current) {
-            // Cleanup if not on original tab
             cleanup();
             return;
         }
+
+        if (chartRef.current) return;
 
         // Clear container trước khi tạo chart mới
         if (chartContainerRef.current) {
@@ -168,7 +303,7 @@ export default function Chart({ chartData }: ChartProps) {
                     textColor: isDarkMode ? "#D1D4DC" : "#1E1E1E",
                     background: {
                         type: ColorType.Solid,
-                        color: isDarkMode ? '#181A20' : '#FFFFFF' // TradingView style
+                        color: isDarkMode ? '#181A20' : '#FFFFFF'
                     },
                     fontSize: 12,
                 },
@@ -177,12 +312,12 @@ export default function Chart({ chartData }: ChartProps) {
                 grid: {
                     vertLines: {
                         color: isDarkMode ? '#2B2B43' : '#E0E3EB',
-                        style: 2, // dashed
+                        style: 2,
                         visible: true,
                     },
                     horzLines: {
                         color: isDarkMode ? '#2B2B43' : '#E0E3EB',
-                        style: 2, // dashed
+                        style: 2,
                         visible: true,
                     },
                 },
@@ -222,110 +357,79 @@ export default function Chart({ chartData }: ChartProps) {
                     timeVisible: true,
                     secondsVisible: false,
                     rightOffset: 10,
-                    barSpacing: 2, // Có khoảng cách nhỏ giữa các bars để thấy rõ nến
-                    minBarSpacing: 2, // Khoảng cách tối thiểu
-                    rightBarStaysOnScroll: false, // Don't auto-scroll when new data arrives
+                    barSpacing: 2,
+                    minBarSpacing: 2,
+                    rightBarStaysOnScroll: false,
                 },
                 watermark: {
-                    visible: false, // Bỏ watermark/logo
+                    visible: false,
                 },
             };
 
             const chart = createChart(chartContainerRef.current, chartOptions);
             chartRef.current = chart;
-
-            // Add candlestick series - TradingView style colors
-            // Attach to right price scale (default)
+            const colors = getCandleColors(isDarkMode);
             const candlestickSeries = chart.addSeries(CandlestickSeries, {
-                upColor: isDarkMode ? '#26A69A' : '#089981', // Green for bullish
-                downColor: isDarkMode ? '#EF5350' : '#F23645', // Red for bearish
+                ...colors,
                 borderVisible: false,
-                wickUpColor: isDarkMode ? '#26A69A' : '#089981',
-                wickDownColor: isDarkMode ? '#EF5350' : '#F23645',
-                priceScaleId: 'right', // Use right price scale for candles
+                wickUpColor: colors.upColor,
+                wickDownColor: colors.downColor,
+                priceScaleId: 'right',
             });
 
             candleSeriesRef.current = candlestickSeries;
-
-            // Add volume series with separate price scale (left side)
-            // Volume will use its own price scale but share time scale with candles
             const volumeSeries = chart.addSeries(HistogramSeries, {
-                priceFormat: {
-                    type: 'volume',
-                },
-                priceScaleId: 'left', // Use left price scale for volume
-                baseLineVisible: true, // Show baseline at 0 - bars will grow upward from this line
-                baseLineColor: isDarkMode ? '#666666' : '#CCCCCC', // Subtle baseline color to show 0 level
+                priceFormat: { type: 'volume' },
+                priceScaleId: 'left',
+                baseLineVisible: true,
+                baseLineColor: isDarkMode ? '#666666' : '#CCCCCC',
             });
 
-            // Configure volume price scale (left side, separate from candles)
-            // Volume will be displayed at the bottom portion of the chart
-            // Ensure scale starts from 0 (no negative values) to prevent volume bars from being compressed
-            const gapBetweenCandlesAndVolume = 0.1; // 10% gap between candles and volume for better separation
-            const volumeTopMargin = candleHeight / 100 + gapBetweenCandlesAndVolume; // Percentage from top for candles + gap
+            const gapBetweenCandlesAndVolume = 0.05; // 5% gap between candles and volume for better separation
+            const volumeTopMargin = Math.min(candleHeight / 100 + gapBetweenCandlesAndVolume, 0.95); // Percentage from top for candles + gap, max 95%
             chart.priceScale('left').applyOptions({
                 scaleMargins: {
-                    top: volumeTopMargin, // Volume starts after candles with a small gap
-                    bottom: 0, // No margin at bottom - volume bars stick to the bottom
+                    top: volumeTopMargin,
+                    bottom: 0,
                 },
                 visible: true,
                 entireTextOnly: false,
                 autoScale: true,
             });
 
-            // Configure right price scale for candles
-            // Candles will be displayed at the top portion of the chart
-            const candleTopMargin = 0.1; // 10% margin at top for better visibility
-            const candleBottomMargin = (100 - candleHeight) / 100 + gapBetweenCandlesAndVolume; // Percentage from bottom for volume + gap
+            const candleTopMargin = 0.05; // 5% margin at top for better visibility
+            const candleBottomMargin = Math.min((100 - candleHeight) / 100 + gapBetweenCandlesAndVolume, 0.95); // Percentage from bottom for volume + gap, max 95%
             chart.priceScale('right').applyOptions({
                 scaleMargins: {
-                    top: candleTopMargin, // Add margin at top for candles
-                    bottom: candleBottomMargin, // Candles end before volume with a small gap
+                    top: candleTopMargin,
+                    bottom: candleBottomMargin,
                 },
                 autoScale: true,
             });
 
-            // Also configure candlestick series margins
-            candlestickSeries.applyOptions({
-                priceScaleId: 'right',
-            });
-
-            // Configure volume series margins
-            volumeSeries.applyOptions({
-                priceScaleId: 'left',
-            });
+            candlestickSeries.applyOptions({ priceScaleId: 'right' });
+            volumeSeries.applyOptions({ priceScaleId: 'left' });
 
             volumeSeriesRef.current = volumeSeries;
 
-            // Update scale margins when candleHeight changes
             const updateScaleMargins = () => {
                 if (!chartRef.current) return;
-                const gapBetweenCandlesAndVolume = 0.02; // 2% gap between candles and volume
+                const gapBetweenCandlesAndVolume = 0.05; // 5% gap between candles and volume
                 const candleTopMargin = 0.05; // 5% margin at top for candles
-                const volumeTopMargin = candleHeight / 100 + gapBetweenCandlesAndVolume;
-                const candleBottomMargin = (100 - candleHeight) / 100 + gapBetweenCandlesAndVolume;
+                const volumeTopMargin = Math.min(candleHeight / 100 + gapBetweenCandlesAndVolume, 0.95);
+                const candleBottomMargin = Math.min((100 - candleHeight) / 100 + gapBetweenCandlesAndVolume, 0.95);
 
                 chart.priceScale('left').applyOptions({
-                    scaleMargins: {
-                        top: volumeTopMargin,
-                        bottom: 0,
-                    },
+                    scaleMargins: { top: volumeTopMargin, bottom: 0 },
                 });
 
                 chart.priceScale('right').applyOptions({
-                    scaleMargins: {
-                        top: candleTopMargin, // Add margin at top for candles
-                        bottom: candleBottomMargin,
-                    },
+                    scaleMargins: { top: candleTopMargin, bottom: candleBottomMargin },
                 });
             };
 
             updateScaleMargins();
 
-            // Don't auto-fit content - let user control zoom manually
-            // chart.timeScale().fitContent();
-
-            // Handle resize
             const handleResize = () => {
                 if (chartContainerRef.current && chartRef.current) {
                     chart.applyOptions({
@@ -335,10 +439,7 @@ export default function Chart({ chartData }: ChartProps) {
                 }
             };
 
-            // Use ResizeObserver to watch container size changes
             const resizeObserver = new ResizeObserver(handleResize);
-
-            // Watch both window resize and container resize
             window.addEventListener('resize', handleResize);
             if (chartContainerRef.current) {
                 resizeObserver.observe(chartContainerRef.current);
@@ -356,40 +457,35 @@ export default function Chart({ chartData }: ChartProps) {
             };
         } catch (error) {
             console.error('Error initializing chart:', error);
-            // console.log('Please run: npm install lightweight-charts');
         }
-    }, [activeChartTab, isDarkMode]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeChartTab, candleHeight]);
 
-    // Update scale margins when candleHeight changes
+    // Update scale margins khi candleHeight thay đổi
     useEffect(() => {
         if (!chartRef.current || !candleSeriesRef.current || !volumeSeriesRef.current) return;
 
-        const gapBetweenCandlesAndVolume = 0.02; // 2% gap between candles and volume
-        const candleTopMargin = 0.05; // 5% margin at top for candles
-        const volumeTopMargin = candleHeight / 100 + gapBetweenCandlesAndVolume;
-        const candleBottomMargin = (100 - candleHeight) / 100 + gapBetweenCandlesAndVolume;
+        const gapBetweenCandlesAndVolume = 0.05;
+        const candleTopMargin = 0.05;
+        const volumeTopMargin = Math.min(candleHeight / 100 + gapBetweenCandlesAndVolume, 0.95);
+        const candleBottomMargin = Math.min((100 - candleHeight) / 100 + gapBetweenCandlesAndVolume, 0.95);
 
         chartRef.current.priceScale('left').applyOptions({
-            scaleMargins: {
-                top: volumeTopMargin,
-                bottom: 0,
-            },
+            scaleMargins: { top: volumeTopMargin, bottom: 0 },
         });
 
         chartRef.current.priceScale('right').applyOptions({
-            scaleMargins: {
-                top: candleTopMargin, // Add margin at top for candles
-                bottom: candleBottomMargin,
-            },
+            scaleMargins: { top: candleTopMargin, bottom: candleBottomMargin },
         });
     }, [candleHeight]);
 
-    // Set initial data when symbol/timeframe changes OR when candles data changes significantly
-    // This ensures chart updates when switching timeframes
+    // Set initial data khi symbol/timeframe thay đổi hoặc khi có data mới
     useEffect(() => {
-        if (!candleSeriesRef.current || !volumeSeriesRef.current) return;
+        if (!candleSeriesRef.current || !volumeSeriesRef.current) {
+            setIsChartReady(false);
+            return;
+        }
 
-        // Only use real candles data (no mock data fallback)
         let dataToUse = realCandles.length > 0 ? realCandles : (chartData || []);
 
         // Reset hash when timeframe or symbol changes
@@ -398,78 +494,45 @@ export default function Chart({ chartData }: ChartProps) {
             lastDataHashRef.current = '';
             lastUpdateTimeRef.current = 0;
             lastTimeframeRef.current = timeframe;
+            setIsChartReady(false); // Reset ready state khi timeframe/symbol thay đổi
         }
 
-        // If no data, skip update (wait for data to load)
-        if (dataToUse.length === 0) {
+        // If no data or still loading, skip update (wait for data to load)
+        if (dataToUse.length === 0 || candlesLoading) {
             // Reset lastUpdateTimeRef when data is cleared
             lastUpdateTimeRef.current = 0;
+            setIsChartReady(false);
             return;
         }
 
-        // Create a hash based on first candle time, last candle time, and length
-        // This helps detect if this is a timeframe change (significant data change) vs incremental update
+        // Hash để detect significant changes (timeframe/symbol change) vs incremental update
         const firstCandleTime = dataToUse[0]?.time || 0;
         const lastCandleTime = dataToUse[dataToUse.length - 1]?.time || 0;
         const dataHash = `${firstCandleTime}-${lastCandleTime}-${dataToUse.length}`;
-
-        // Only do full setData if:
-        // 1. Data hash changed (timeframe/symbol change or significant data change)
-        // 2. Or if this is the first load (lastDataHashRef is empty)
-        // This prevents unnecessary setData calls on incremental updates
         const isSignificantChange = lastDataHashRef.current === '' || lastDataHashRef.current !== dataHash;
 
+        // Skip nếu chỉ là incremental update (sẽ được xử lý bởi update effect)
         if (!isSignificantChange && lastDataHashRef.current !== '') {
-            // This is likely just an incremental update, skip full setData
-            // The update effect will handle it via update() method
             return;
         }
 
-        // Update hash for next comparison
         lastDataHashRef.current = dataHash;
 
-        // Helper function to safely convert time to number (same as in update effect)
-        const convertTimeToNumber = (time: any): number => {
-            if (typeof time === 'number' && !isNaN(time)) {
-                return time;
-            }
-            if (time instanceof Date) {
-                return Math.floor(time.getTime() / 1000); // Convert to Unix timestamp in seconds
-            }
-            if (typeof time === 'string') {
-                // Try parsing as number first
-                const num = Number(time);
-                if (!isNaN(num)) return num;
-                // Try parsing as date
-                const date = new Date(time);
-                if (!isNaN(date.getTime())) {
-                    return Math.floor(date.getTime() / 1000);
-                }
-            }
-            console.error('Invalid time value:', time);
-            return 0;
-        };
-
-        // Ensure data is sorted by time (ascending) and remove duplicates
-        // lightweight-charts requires: ascending order, no duplicate times
         try {
-            // Sort by time ascending
+            // Sort và remove duplicates (lightweight-charts yêu cầu ascending order, no duplicates)
             dataToUse = [...dataToUse].sort((a, b) => {
                 const timeA = convertTimeToNumber(a.time);
                 const timeB = convertTimeToNumber(b.time);
                 return timeA - timeB;
             });
 
-            // Remove duplicates (keep the last one if same time)
             const uniqueData: CandleData[] = [];
             const seenTimes = new Set<number>();
 
-            // Process in reverse to keep the last candle for each time
             for (let i = dataToUse.length - 1; i >= 0; i--) {
                 const candle = dataToUse[i];
                 const candleTime = convertTimeToNumber(candle.time);
 
-                // Skip invalid times
                 if (!candleTime || isNaN(candleTime) || candleTime <= 0) {
                     console.warn('Skipping candle with invalid time:', candle);
                     continue;
@@ -477,151 +540,83 @@ export default function Chart({ chartData }: ChartProps) {
 
                 if (!seenTimes.has(candleTime)) {
                     seenTimes.add(candleTime);
-                    uniqueData.unshift(candle); // Add to front to maintain ascending order
+                    uniqueData.unshift(candle);
                 }
             }
 
             dataToUse = uniqueData;
 
-            // Convert time to UTC+7 for display (Vietnam timezone)
-            // This adjusts the time so the chart displays in UTC+7
+            // Convert time sang UTC+7 (Vietnam timezone) để hiển thị
             const dataWithUTC7Time: CandleData[] = dataToUse.map((candle) => ({
                 ...candle,
                 time: convertToUTC7(convertTimeToNumber(candle.time)),
             }));
 
-            // Don't save/restore range - let user control zoom manually
-            // This prevents any auto-scroll behavior
-
-            // Set data - this may trigger chart to auto-scroll
             candleSeriesRef.current.setData(dataWithUTC7Time);
 
-            // autoScale will automatically adjust price scale to fit data
-            // Since we're using autoScale: true, it won't show negative values
-            // if the data doesn't contain negative prices
+            // Tạo volume data với màu matching candlestick
+            const volumeData: VolumeData[] = dataWithUTC7Time.map((item) => ({
+                time: convertTimeToNumber(item.time),
+                value: Math.max(0, item.volume || 0),
+                color: getVolumeColor(item, isDarkMode),
+            }));
 
-            // Convert candle data to volume data với màu sắc giống candlestick nhưng có opacity
-            // Use converted UTC+7 time for volume data as well
-            const volumeData: VolumeData[] = dataWithUTC7Time.map((item) => {
-                // Volume dùng màu giống candlestick nhưng với opacity (60%)
-                const baseColor = item.close >= item.open
-                    ? (isDarkMode ? '#26A69A' : '#089981') // Màu xanh giống candlestick
-                    : (isDarkMode ? '#EF5350' : '#F23645'); // Màu đỏ giống candlestick
-
-                // Convert hex to rgba với opacity 60%
-                const hexToRgba = (hex: string, opacity: number) => {
-                    const r = parseInt(hex.slice(1, 3), 16);
-                    const g = parseInt(hex.slice(3, 5), 16);
-                    const b = parseInt(hex.slice(5, 7), 16);
-                    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-                };
-
-                // Ensure time is a valid number
-                const itemTime = convertTimeToNumber(item.time);
-
-                return {
-                    time: itemTime,
-                    value: Math.max(0, item.volume || 0), // Ensure no negative values
-                    color: hexToRgba(baseColor, 0.5), // 60% opacity
-                };
-            });
-
-            // Always add invisible zero-value points at the start and end
-            // This forces the scale to always include 0, preventing it from going below 0
+            // Thêm invisible zero points để force scale bắt đầu từ 0
             if (volumeData.length > 0) {
                 const firstTime = volumeData[0].time;
                 const lastTime = volumeData[volumeData.length - 1].time;
-
-                // Add invisible zero point at the start (slightly before first data point)
-                volumeData.unshift({
-                    time: firstTime - 1,
-                    value: 0,
-                    color: 'transparent', // Invisible - just to anchor scale at 0
-                });
-
-                // Add invisible zero point at the end (slightly after last data point)
-                volumeData.push({
-                    time: lastTime + 1,
-                    value: 0,
-                    color: 'transparent', // Invisible - just to anchor scale at 0
-                });
+                volumeData.unshift({ time: firstTime - 1, value: 0, color: 'transparent' });
+                volumeData.push({ time: lastTime + 1, value: 0, color: 'transparent' });
             }
 
             volumeSeriesRef.current.setData(volumeData);
 
-            // Force volume scale to start from 0 after data is set
-            // Since volume data is always >= 0 and baseLineVisible is true,
-            // bars will grow upward from the baseline at 0
+            // Auto-fit content khi load data lần đầu
             if (chartRef.current) {
-                // Wait for chart to process the data
                 setTimeout(() => {
                     if (chartRef.current && volumeData.length > 0) {
-                        const gapBetweenCandlesAndVolume = 0.02; // 2% gap between candles and volume
-                        const volumeTopMargin = candleHeight / 100 + gapBetweenCandlesAndVolume;
-
-                        // Ensure no bottom margin so bars stick to bottom
-                        // autoScale will automatically start from 0 since all data is >= 0
-                        // baseLineVisible ensures bars grow upward from baseline
+                        const gapBetweenCandlesAndVolume = 0.05;
+                        const volumeTopMargin = Math.min(candleHeight / 100 + gapBetweenCandlesAndVolume, 0.95);
                         chartRef.current.priceScale('left').applyOptions({
-                            scaleMargins: {
-                                top: volumeTopMargin,
-                                bottom: 0, // No margin - bars stick to bottom
-                            },
+                            scaleMargins: { top: volumeTopMargin, bottom: 0 },
                             autoScale: true,
                         });
+                        setIsChartReady(true);
                     }
                 }, 100);
+            } else {
+                setIsChartReady(true);
             }
 
-            // Auto-fit time scale and price scale when loading data (first time or timeframe change)
-            // This ensures candles are visible with proper zoom level
+            // Auto-fit time scale và price scale khi load data lần đầu
             if (chartRef.current && dataWithUTC7Time.length > 0) {
                 setTimeout(() => {
                     if (chartRef.current) {
                         try {
                             const visibleRange = chartRef.current.timeScale().getVisibleRange();
-                            // Only fitContent if chart is empty (no visible range set)
                             if (!visibleRange || !visibleRange.from || !visibleRange.to) {
-                                // Fit time scale to show all candles
                                 chartRef.current.timeScale().fitContent();
-
-                                // Calculate min/max price of all candles to ensure proper price scale
-                                // This ensures high/low points of candles are visible in the chart
                                 const prices = dataWithUTC7Time.flatMap(candle => [
-                                    candle.high,
-                                    candle.low,
-                                    candle.open,
-                                    candle.close
+                                    candle.high, candle.low, candle.open, candle.close
                                 ]).filter(price => price && !isNaN(price) && price > 0);
 
                                 if (prices.length > 0) {
-                                    // Set price scale margins to ensure high/low points are visible
-                                    // with some breathing room (10% margin on top and bottom)
                                     chartRef.current.priceScale('right').applyOptions({
                                         autoScale: true,
-                                        scaleMargins: {
-                                            top: 0.1, // 10% margin at top - ensures highest point is visible
-                                            bottom: 0.1, // 10% margin at bottom - ensures lowest point is visible
-                                        },
+                                        scaleMargins: { top: 0.1, bottom: 0.1 },
                                     });
-
-                                    // Force chart to recalculate and apply the price scale
-                                    // This ensures the scale fits the data properly
                                     chartRef.current.timeScale().fitContent();
                                 }
                             }
-                            // Otherwise, don't change the view - let user control it
                         } catch {
-                            // If error getting range, assume empty and fit content
                             chartRef.current.timeScale().fitContent();
                         }
                     }
                 }, 150);
             }
 
-            // Set last update time to the last candle's time from initial data
+            // Track last update time để chỉ update candles mới hơn
             // Store UTC+7 time (same format as chart data) to ensure proper comparison
-            // This ensures subsequent updates only happen for newer candles
             if (dataWithUTC7Time.length > 0) {
                 const lastCandleTimeUTC7 = dataWithUTC7Time[dataWithUTC7Time.length - 1].time;
                 if (lastCandleTimeUTC7 && !isNaN(lastCandleTimeUTC7) && lastCandleTimeUTC7 > 0) {
@@ -635,90 +630,25 @@ export default function Chart({ chartData }: ChartProps) {
         } catch (error) {
             console.error('Error setting initial data:', error);
         }
-        // Include realCandles in dependencies to update chart when timeframe changes
-        // The dataHash check prevents unnecessary updates on incremental changes
-    }, [isDarkMode, symbol, timeframe, realCandles]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [symbol, timeframe, realCandles, candlesLoading, chartData, candleHeight]);
 
-    // Map timeframe value to TradingView interval format
-    // Note: TradingView interval format:
-    // - Numbers (1, 15, 30, 60) = minutes (1 = 1 minute, 15 = 15 minutes, 30 = 30 minutes, 60 = 1 hour)
-    // - "1S" = 1 second (requires Premium account)
-    // - "D" = day, "W" = week, "M" = month
-    const getTradingViewInterval = (tf: string): string => {
-        const intervalMap: { [key: string]: string } = {
-            // "1s": "1S", // 1 second (may require Premium account, falls back to 1 minute if not available)
-            "1m": "1", // 1 minute
-            "5m": "5", // 5 minutes
-            "15m": "15", // 15 minutes
-            "30m": "30", // 30 minutes
-            "1h": "60", // 60 minutes = 1 hour
-            "4h": "240", // 240 minutes = 4 hours
-            "1d": "D", // 1 day
-            "1w": "W", // 1 week
-            "time": "60", // default to 1 hour
-        };
-        return intervalMap[tf] || "60";
-    };
-
-    const handleTimeframeChange = (tf: string) => {
-        if (tf === "time") return; // Skip "Thời gian" label button
-        setTimeframe(tf);
-        // console.log('Timeframe changed to:', tf);
-    };
-
-    // Update chart when real candles change (incremental updates)
+    // Update chart khi có candle mới từ WebSocket (incremental updates)
     useEffect(() => {
         if (!candleSeriesRef.current || !volumeSeriesRef.current || realCandles.length === 0) return;
 
         try {
-            // Convert hex to rgba helper
-            const hexToRgba = (hex: string, opacity: number) => {
-                const r = parseInt(hex.slice(1, 3), 16);
-                const g = parseInt(hex.slice(3, 5), 16);
-                const b = parseInt(hex.slice(5, 7), 16);
-                return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-            };
-
-            // Helper function to safely convert time to number
-            const convertTimeToNumber = (time: any): number => {
-                if (typeof time === 'number' && !isNaN(time)) {
-                    return time;
-                }
-                if (time instanceof Date) {
-                    return Math.floor(time.getTime() / 1000); // Convert to Unix timestamp in seconds
-                }
-                if (typeof time === 'string') {
-                    // Try parsing as number first
-                    const num = Number(time);
-                    if (!isNaN(num)) return num;
-                    // Try parsing as date
-                    const date = new Date(time);
-                    if (!isNaN(date.getTime())) {
-                        return Math.floor(date.getTime() / 1000);
-                    }
-                }
-                console.error('Invalid time value:', time);
-                return 0;
-            };
-
-            // Get the last candle to update (most recent)
             const lastCandle = realCandles[realCandles.length - 1];
-
-            // Safely convert time to number
             const candleTime = convertTimeToNumber(lastCandle.time);
 
-            // Validate time is valid
             if (!candleTime || isNaN(candleTime) || candleTime <= 0) {
                 console.error('Invalid candle time:', lastCandle.time, 'converted to:', candleTime);
                 return;
             }
 
-            // Convert time to UTC+7 for display (same as initial data)
             const candleTimeUTC7 = convertToUTC7(candleTime);
-
-            // Ensure all values are numbers
             const candleData = {
-                time: candleTimeUTC7, // Use UTC+7 time for chart display
+                time: candleTimeUTC7,
                 open: Number(lastCandle.open),
                 high: Number(lastCandle.high),
                 low: Number(lastCandle.low),
@@ -726,41 +656,26 @@ export default function Chart({ chartData }: ChartProps) {
                 volume: Number(lastCandle.volume || 0),
             };
 
-            // Validate all values are valid numbers
             if (isNaN(candleData.open) || isNaN(candleData.high) || isNaN(candleData.low) || isNaN(candleData.close) || isNaN(candleData.volume)) {
                 console.error('Invalid candle data values:', candleData);
                 return;
             }
 
-            // Get current data from series to check oldest/newest times
-            // lightweight-charts doesn't expose this directly, so we track it ourselves
-            // Only update if this is a new candle (time > last update time) OR same candle with updated data
-            // Note: lastUpdateTimeRef.current stores UTC+7 time (same format as chart data)
-            // This prevents updating with old data when switching symbols/timeframes, but allows updates for the current candle
+            // Chỉ update nếu candle mới hơn hoặc bằng last update time
             if (candleData.time >= lastUpdateTimeRef.current) {
                 try {
-                    // Update candle - lightweight-charts will handle update/create automatically
-                    // Don't save/restore visible range - let user control zoom manually
                     candleSeriesRef.current.update(candleData);
 
                     // Update volume
-                    const baseColor = candleData.close >= candleData.open
-                        ? (isDarkMode ? '#26A69A' : '#089981')
-                        : (isDarkMode ? '#EF5350' : '#F23645');
-
+                    const volumeColor = getVolumeColor(candleData, isDarkMode);
                     volumeSeriesRef.current.update({
                         time: candleData.time,
                         value: candleData.volume,
-                        color: hexToRgba(baseColor, 0.5),
+                        color: volumeColor,
                     });
 
                     // Update last update time
                     lastUpdateTimeRef.current = candleData.time;
-
-                    // Don't restore range - let user control zoom manually
-                    // This prevents auto-scroll when new candles arrive
-
-                    // Log for debugging
                     console.log('📊 Updated chart with candle:', {
                         time: new Date(candleData.time * 1000).toISOString(),
                         open: candleData.open,
@@ -770,13 +685,9 @@ export default function Chart({ chartData }: ChartProps) {
                         volume: candleData.volume,
                     });
                 } catch (updateError: any) {
-                    // If update fails (e.g., trying to update oldest data), it means the series was reset
-                    // In this case, we should set the data again instead of updating
                     if (updateError?.message?.includes('oldest data') || updateError?.message?.includes('Cannot update')) {
-                        console.warn('⚠️ Update failed - series may have been reset. Re-setting data...', updateError.message);
-                        // Reset lastUpdateTimeRef so next update will work
+                        console.warn('Update failed - series may have been reset. Re-setting data...', updateError.message);
                         lastUpdateTimeRef.current = 0;
-                        // Trigger re-render by setting data (this will be handled by the initial data useEffect)
                         return;
                     }
                     throw updateError;
@@ -787,11 +698,10 @@ export default function Chart({ chartData }: ChartProps) {
                     lastUpdateTime: new Date(lastUpdateTimeRef.current * 1000).toISOString(),
                 });
             }
-
         } catch (error) {
             console.error('Error updating candle:', error);
         }
-    }, [realCandles, isDarkMode]); // Trigger when candles array changes (length or content)
+    }, [realCandles, isDarkMode]);
 
     // TradingView Widget chart
     useEffect(() => {
@@ -843,10 +753,10 @@ export default function Chart({ chartData }: ChartProps) {
     }, [activeChartTab, symbol, timeframe, isDarkMode]);
 
     return (
-        <div className="bg-white dark:bg-[#181A20] min-h-[525px] rounded-[8px] flex flex-col relative overflow-hidden">
+        <div id="chart" className="bg-white dark:bg-[#181A20] min-h-[525px] rounded-[8px] flex flex-col relative overflow-hidden">
             {/* Main Tabs */}
             <div className="h-[42px] border-b border-[#f0f0f0] dark:border-[#373c43] flex items-center px-[16px] gap-[24px]">
-                {mainTabs.map((tab) => (
+                {MAIN_TABS.map((tab) => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveMainTab(tab.id)}
@@ -888,7 +798,7 @@ export default function Chart({ chartData }: ChartProps) {
 
                             {/* Chart Sub-Tabs */}
                             <div className="flex items-center gap-[4px]">
-                                {chartTabs.map((tab) => (
+                                {CHART_TABS.map((tab) => (
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveChartTab(tab.id)}
@@ -916,6 +826,20 @@ export default function Chart({ chartData }: ChartProps) {
                                 ref={chartContainerRef}
                                 className="w-full h-full relative"
                             />
+
+                            {/* Loading Overlay - Hiển thị khi đang load candles */}
+                            {(candlesLoading || !isChartReady) && (
+                                <div className="absolute inset-0 bg-white/80 dark:bg-[#181A20]/80 backdrop-blur-sm flex items-center justify-center z-50">
+                                    <div className="flex flex-col items-center gap-4">
+                                        <div className="relative w-12 h-12">
+                                            <div className="loader"></div>
+                                        </div>
+                                        <p className="text-[14px] text-gray-600 dark:text-gray-400">
+                                            Đang tải dữ liệu nến...
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Resize Handle - Overlay on chart */}
                             <div
@@ -981,7 +905,7 @@ export default function Chart({ chartData }: ChartProps) {
                                 ))}
                             </div>
                             <div className="flex items-center gap-[4px]">
-                                {chartTabs.map((tab) => (
+                                {CHART_TABS.map((tab) => (
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveChartTab(tab.id)}
@@ -1004,7 +928,7 @@ export default function Chart({ chartData }: ChartProps) {
                         <div className="h-[36px] border-b border-[#f0f0f0] flex items-center justify-between px-[12px]">
                             <span className="text-[12px] text-[#666]">Thông tin chi tiết</span>
                             <div className="flex items-center gap-[4px]">
-                                {chartTabs.map((tab) => (
+                                {CHART_TABS.map((tab) => (
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveChartTab(tab.id)}
@@ -1050,7 +974,7 @@ export default function Chart({ chartData }: ChartProps) {
             ) : (
                 <div className="flex-1 flex items-center justify-center text-[#9c9c9c]">
                     <div className="text-center">
-                        <p className="text-[14px]">Nội dung tab &quot;{mainTabs.find(t => t.id === activeMainTab)?.label}&quot;</p>
+                        <p className="text-[14px]">Nội dung tab &quot;{MAIN_TABS.find(t => t.id === activeMainTab)?.label}&quot;</p>
                         <p className="text-[12px] mt-[8px]">Đang phát triển...</p>
                     </div>
                 </div>
