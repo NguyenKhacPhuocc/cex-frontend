@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 import { useEffect, useRef, useState } from 'react';
@@ -339,7 +340,7 @@ export default function Chart({ chartData }: ChartProps) {
                     visible: true, // Show price scale for candles
                     autoScale: true, // Auto-scale to fit data
                     scaleMargins: {
-                        top: 0.05, // 5% margin at top for candles
+                        top: 0.08, // 5% margin at top for candles
                         bottom: 0.1,
                     },
                 },
@@ -385,7 +386,7 @@ export default function Chart({ chartData }: ChartProps) {
                 baseLineColor: isDarkMode ? '#666666' : '#CCCCCC',
             });
 
-            const gapBetweenCandlesAndVolume = 0.05; // 5% gap between candles and volume for better separation
+            const gapBetweenCandlesAndVolume = 0.08; // 5% gap between candles and volume for better separation
             const volumeTopMargin = Math.min(candleHeight / 100 + gapBetweenCandlesAndVolume, 0.95); // Percentage from top for candles + gap, max 95%
             chart.priceScale('left').applyOptions({
                 scaleMargins: {
@@ -397,7 +398,7 @@ export default function Chart({ chartData }: ChartProps) {
                 autoScale: true,
             });
 
-            const candleTopMargin = 0.05; // 5% margin at top for better visibility
+            const candleTopMargin = 0.1; // 5% margin at top for better visibility
             const candleBottomMargin = Math.min((100 - candleHeight) / 100 + gapBetweenCandlesAndVolume, 0.95); // Percentage from bottom for volume + gap, max 95%
             chart.priceScale('right').applyOptions({
                 scaleMargins: {
@@ -414,8 +415,8 @@ export default function Chart({ chartData }: ChartProps) {
 
             const updateScaleMargins = () => {
                 if (!chartRef.current) return;
-                const gapBetweenCandlesAndVolume = 0.05; // 5% gap between candles and volume
-                const candleTopMargin = 0.05; // 5% margin at top for candles
+                const gapBetweenCandlesAndVolume = 0.5; // 5% gap between candles and volume
+                const candleTopMargin = 0.1; // 5% margin at top for candles
                 const volumeTopMargin = Math.min(candleHeight / 100 + gapBetweenCandlesAndVolume, 0.95);
                 const candleBottomMargin = Math.min((100 - candleHeight) / 100 + gapBetweenCandlesAndVolume, 0.95);
 
@@ -458,15 +459,14 @@ export default function Chart({ chartData }: ChartProps) {
         } catch (error) {
             console.error('Error initializing chart:', error);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeChartTab, candleHeight]);
+    }, [activeChartTab]); // Không include candleHeight để tránh recreate chart khi resize
 
     // Update scale margins khi candleHeight thay đổi
     useEffect(() => {
         if (!chartRef.current || !candleSeriesRef.current || !volumeSeriesRef.current) return;
 
         const gapBetweenCandlesAndVolume = 0.05;
-        const candleTopMargin = 0.05;
+        const candleTopMargin = 0.1;
         const volumeTopMargin = Math.min(candleHeight / 100 + gapBetweenCandlesAndVolume, 0.95);
         const candleBottomMargin = Math.min((100 - candleHeight) / 100 + gapBetweenCandlesAndVolume, 0.95);
 
@@ -575,7 +575,7 @@ export default function Chart({ chartData }: ChartProps) {
             if (chartRef.current) {
                 setTimeout(() => {
                     if (chartRef.current && volumeData.length > 0) {
-                        const gapBetweenCandlesAndVolume = 0.05;
+                        const gapBetweenCandlesAndVolume = 0.08;
                         const volumeTopMargin = Math.min(candleHeight / 100 + gapBetweenCandlesAndVolume, 0.95);
                         chartRef.current.priceScale('left').applyOptions({
                             scaleMargins: { top: volumeTopMargin, bottom: 0 },
@@ -630,7 +630,6 @@ export default function Chart({ chartData }: ChartProps) {
         } catch (error) {
             console.error('Error setting initial data:', error);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [symbol, timeframe, realCandles, candlesLoading, chartData, candleHeight]);
 
     // Update chart khi có candle mới từ WebSocket (incremental updates)
