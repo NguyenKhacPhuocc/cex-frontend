@@ -5,6 +5,7 @@ import { useSpot } from "@/contexts/SpotContext";
 import { useAllBalances, Balance } from "@/hooks/useBalances";
 import { usePlaceOrder } from "@/hooks/useOrders";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
+import { useTicker } from "@/hooks/useTicker";
 import { HiDotsVertical } from "react-icons/hi";
 import { toast } from "react-hot-toast";
 
@@ -26,8 +27,7 @@ export default function Order() {
     const [buySlider, setBuySlider] = useState<number>(0);
     const [sellSlider, setSellSlider] = useState<number>(0);
 
-    // WebSocket connection status (shared across all components)
-    const { isConnected } = useWebSocketContext();
+    // Get current ticker price for market orders
 
     // Fetch balances using React Query
     const balances = useAllBalances(isLogin);
@@ -35,6 +35,9 @@ export default function Order() {
     const futuresBalances = balances.futures.data || [];
     const fundingBalances = balances.funding.data || [];
     const isLoadingBalances = balances.isLoading;
+
+    // Get current ticker price for market orders
+    const { ticker } = useTicker(symbol);
 
     // Place order mutation
     const placeOrderMutation = usePlaceOrder();
@@ -172,11 +175,14 @@ export default function Order() {
         }
 
         try {
+            // For market orders, include current price at the time of order placement
+            const marketPrice = orderTab === 'market' && ticker?.price ? ticker.price : undefined;
+
             await placeOrderMutation.mutateAsync({
                 marketSymbol: symbol,
                 side: 'buy',
                 type: orderTab as 'limit' | 'market',
-                price: orderTab === 'limit' ? parseFloat(buyPrice) : undefined,
+                price: orderTab === 'limit' ? parseFloat(buyPrice) : marketPrice,
                 amount: parseFloat(buyAmount),
             });
 
@@ -218,11 +224,14 @@ export default function Order() {
         }
 
         try {
+            // For market orders, include current price at the time of order placement
+            const marketPrice = orderTab === 'market' && ticker?.price ? ticker.price : undefined;
+
             await placeOrderMutation.mutateAsync({
                 marketSymbol: symbol,
                 side: 'sell',
                 type: orderTab as 'limit' | 'market',
-                price: orderTab === 'limit' ? parseFloat(sellPrice) : undefined,
+                price: orderTab === 'limit' ? parseFloat(sellPrice) : marketPrice,
                 amount: parseFloat(sellAmount),
             });
 
@@ -294,7 +303,7 @@ export default function Order() {
                                 value={orderTab === 'market' ? 'Giá thị trường' : buyPrice}
                                 onChange={(e) => setBuyPrice(e.target.value)}
                                 disabled={orderTab === 'market'}
-                                className={`w-full px-[12px] py-[8px] pr-[50px] text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none focus:border-gray-400 dark:border-[#373c43] dark:text-[#eaecef] text-right ${orderTab === 'market' ? 'bg-gray-300 cursor-not-allowed text-gray-500' : ''}`}
+                                className={`w-full px-[12px] py-[8px] pr-[60px] text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none focus:border-gray-400 dark:border-[#373c43] dark:text-[#eaecef] text-right ${orderTab === 'market' ? 'bg-gray-300 dark:bg-gray-800 cursor-not-allowed text-gray-500' : ''}`}
                             />
                             <span className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
                                 {baseToken}
@@ -421,7 +430,7 @@ export default function Order() {
                                 value={orderTab === 'market' ? 'Giá thị trường' : sellPrice}
                                 onChange={(e) => setSellPrice(e.target.value)}
                                 disabled={orderTab === 'market'}
-                                className={`w-full px-[12px] py-[8px] pr-[50px] dark:border-[#373c43] dark:text-[#eaecef]  text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none focus:border-gray-400 text-right ${orderTab === 'market' ? 'bg-gray-300 cursor-not-allowed text-gray-500' : ''}`}
+                                className={`w-full px-[12px] py-[8px] pr-[60px] dark:border-[#373c43] dark:text-[#eaecef] text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none focus:border-gray-400 text-right ${orderTab === 'market' ? 'bg-gray-300 dark:bg-gray-800 cursor-not-allowed text-gray-500' : ''}`}
                             />
                             <span className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
                                 {baseToken}

@@ -64,7 +64,7 @@ export const usePlaceOrder = () => {
           status: data.status.toUpperCase() as
             | "OPEN"
             | "FILLED"
-            | "CANCELLED"
+            | "CANCELED"
             | "PARTIALLY_FILLED",
           createdAt: data.createdAt,
           updatedAt: data.updatedAt || data.createdAt,
@@ -114,7 +114,7 @@ export interface Order {
   price: number | null;
   amount: number;
   filled: number;
-  status: "OPEN" | "FILLED" | "CANCELLED" | "PARTIALLY_FILLED";
+  status: "OPEN" | "FILLED" | "CANCELED" | "PARTIALLY_FILLED";
   createdAt: string;
   updatedAt: string;
 }
@@ -174,7 +174,7 @@ export const useOpenOrders = (enabled: boolean = true) => {
     }) => {
       // Optimistic update: Update order status immediately in cache and state
       queryClient.setQueryData<Order[]>(["orders", "open"], (oldData = []) => {
-        if (data.status === "FILLED" || data.status === "CANCELLED") {
+        if (data.status === "FILLED" || data.status === "CANCELED") {
           // Remove order immediately if filled or cancelled
           const filtered = oldData.filter((order) => order.id !== data.orderId);
           return filtered;
@@ -190,7 +190,7 @@ export const useOpenOrders = (enabled: boolean = true) => {
       });
 
       // Also update state immediately
-      if (data.status === "FILLED" || data.status === "CANCELLED") {
+      if (data.status === "FILLED" || data.status === "CANCELED") {
         setRealtimeOrders((prev) => {
           const filtered = prev.filter((order) => order.id !== data.orderId);
           return filtered;
@@ -287,7 +287,6 @@ export const useOrderHistory = (enabled: boolean = true) => {
     };
 
     const handleTradeExecuted = () => {
-      console.log("🎯 [WebSocket] Trade executed, refetching order history...");
       // When trade executed, order might be filled/partially filled → move to history
       queryClient.invalidateQueries({
         queryKey: ["orders", "history"],
@@ -305,4 +304,43 @@ export const useOrderHistory = (enabled: boolean = true) => {
   }, [socket, isConnected, enabled, queryClient]);
 
   return query;
+};
+
+// ========== Cancel Order ==========
+
+/**
+ * Hook to cancel an order
+ */
+export const useCancelOrder = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      const response = await apiClient.post<{
+        code: string;
+        message: string;
+      }>(`/api/orders/${orderId}/cancel`);
+      return response;
+    },
+    onSuccess: () => {
+      // Invalidate open orders to refetch
+      queryClient.invalidateQueries({
+        queryKey: ["orders", "open"],
+        refetchType: "active",
+      });
+      // Thêm: Invalidate order history để cập nhật tab "Lịch sử lệnh"
+      queryClient.invalidateQueries({
+        queryKey: ["orders", "history"],
+        refetchType: "active",
+      });
+      // Also invalidate balances in case order cancellation affects balance
+      queryClient.invalidateQueries({
+        queryKey: ["balances", "spot"],
+        refetchType: "active",
+      });
+    },
+    onError: (error: Error) => {
+      console.error("Error canceling order:", error);
+    },
+  });
 };

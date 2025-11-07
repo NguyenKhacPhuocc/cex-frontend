@@ -4,9 +4,10 @@ import Link from "next/link";
 import { IoChevronDown } from "react-icons/io5";
 import DateFilters from "@/components/DateFilters";
 import { useAuth } from "@/hooks/useAuth";
-import { useOpenOrders, useOrderHistory } from "@/hooks/useOrders";
+import { useOpenOrders, useOrderHistory, useCancelOrder } from "@/hooks/useOrders";
 import { useAllUserTrades } from "@/hooks/useTrades";
 import { useSpot } from "@/contexts/SpotContext";
+import { toast } from "react-hot-toast";
 
 interface TableHeader {
     label: string;
@@ -24,11 +25,14 @@ export default function OpenOrders() {
     const [underlineStyle, setUnderlineStyle] = useState({ left: 0, width: 0 });
     const [sortByTime] = useState("Sắp xếp theo thời gian đặt lệnh"); // TODO: Implement dropdown later
     const tabsRef = useRef<{ [key: string]: HTMLButtonElement | null }>({});
-
+    const fee = 0; // phí giao dịch
     // Fetch data based on active tab
     const { orders: openOrders, isLoading: isLoadingOpenOrders } = useOpenOrders(isLogin && activeTab === "orders");
     const { data: orderHistory, isLoading: isLoadingHistory } = useOrderHistory(isLogin && activeTab === "history");
     const { data: tradeHistory, isLoading: isLoadingTradeHistory } = useAllUserTrades(isLogin && activeTab === "trade-history");
+
+    // Cancel order mutation
+    const cancelOrderMutation = useCancelOrder();
 
     // Filter by symbol if hideOtherPairs is true
     const filteredOpenOrders = useMemo(() => {
@@ -58,12 +62,13 @@ export default function OpenOrders() {
         { label: "Bên", hasDropdown: true },
         { label: "Giá", hasDropdown: true },
         { label: "Số lượng", hasDropdown: false },
-        { label: "Số tiền trên môi Lệnh tăng bằng", hasDropdown: false },
+        { label: "Thành tiền", hasDropdown: false },
         { label: "Đã khớp", hasDropdown: false },
         { label: "Tổng", hasDropdown: false },
         { label: "Điều kiện kích hoạt", hasDropdown: false },
         { label: "SOR", hasDropdown: false },
         { label: "TP/SL", hasDropdown: false },
+        { label: "Hành động", hasDropdown: false },
     ];
 
     const historyTableHeaders: TableHeader[] = [
@@ -75,7 +80,7 @@ export default function OpenOrders() {
         { label: "Giá", hasDropdown: false },
         { label: "Đã khớp", hasDropdown: false },
         { label: "Số lượng", hasDropdown: false },
-        { label: "Số tiền trên môi Lệnh tăng bằng", hasDropdown: false },
+        { label: "Thành tiền", hasDropdown: false },
         { label: "Tổng", hasDropdown: false },
         { label: "Điều kiện kích hoạt", hasDropdown: false },
         { label: "SOR", hasDropdown: false },
@@ -214,8 +219,8 @@ export default function OpenOrders() {
                 return 'text-blue-600';
             case 'FILLED':
                 return 'text-green-600';
-            case 'CANCELLED':
-                return 'text-red-600';
+            case 'CANCELED':
+                return 'text-red-400';
             case 'PARTIALLY_FILLED':
                 return 'text-yellow-600';
             default:
@@ -391,6 +396,27 @@ export default function OpenOrders() {
                                                     <td className="px-[12px] py-[12px] text-[12px]">--</td>
                                                     <td className="px-[12px] py-[12px] text-[12px]">--</td>
                                                     <td className="px-[12px] py-[12px] text-[12px]">--</td>
+                                                    <td className="px-[12px] py-[12px]">
+                                                        {order.type.toLocaleUpperCase() === "LIMIT" && (order.status.toLocaleUpperCase() === "OPEN" || order.status.toLocaleUpperCase() === "PARTIALLY_FILLED") && (
+                                                            <button
+                                                                onClick={async () => {
+                                                                    if (confirm("Bạn có chắc chắn muốn hủy lệnh này?")) {
+                                                                        try {
+                                                                            await cancelOrderMutation.mutateAsync(order.id);
+                                                                            toast.success("Đã hủy lệnh thành công");
+                                                                        } catch (error) {
+                                                                            const errorMessage = error instanceof Error ? error.message : "Có lỗi xảy ra";
+                                                                            toast.error(`Hủy lệnh thất bại: ${errorMessage}`);
+                                                                        }
+                                                                    }
+                                                                }}
+                                                                disabled={cancelOrderMutation.isPending}
+                                                                className="px-[12px] py-[6px] bg-[#F6465D] hover:bg-[#E5354A] text-white text-[12px] font-medium rounded-[4px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            >
+                                                                {cancelOrderMutation.isPending ? "Đang hủy..." : "Hủy lệnh"}
+                                                            </button>
+                                                        )}
+                                                    </td>
                                                 </tr>
                                             ))
                                         )}
@@ -425,8 +451,8 @@ export default function OpenOrders() {
                                                         <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(order.price || 0), 2)}</td>
                                                         <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(order.filled), 5)}</td>
                                                         <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(order.amount), 5)}</td>
-                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(order.price || 0) * Number(order.amount), 2)}</td>
-                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(order.price || 0) * Number(order.amount), 2)}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(order.price || 0) * Number(order.filled), 2)}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(order.price || 0) * Number(order.filled) + fee, 2)}</td>
                                                         <td className="px-[12px] py-[12px] text-[12px]">--</td>
                                                         <td className="px-[12px] py-[12px] text-[12px]">--</td>
                                                         <td className="px-[12px] py-[12px] text-[12px]">--</td>
