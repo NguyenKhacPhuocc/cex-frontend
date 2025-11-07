@@ -26,7 +26,7 @@ export default function Order() {
     const [buySlider, setBuySlider] = useState<number>(0);
     const [sellSlider, setSellSlider] = useState<number>(0);
 
-    // 🔥 WebSocket connection status (shared across all components)
+    // WebSocket connection status (shared across all components)
     const { isConnected } = useWebSocketContext();
 
     // Fetch balances using React Query
@@ -35,16 +35,6 @@ export default function Order() {
     const futuresBalances = balances.futures.data || [];
     const fundingBalances = balances.funding.data || [];
     const isLoadingBalances = balances.isLoading;
-    const isFetchingBalances = balances.spot.isFetching || balances.futures.isFetching || balances.funding.isFetching;
-
-    // Debug: Log balances when they change
-    console.log('💰 Current Balances in Order.tsx:', {
-        spot: spotBalances,
-        BTC: spotBalances.find(b => b.asset === 'BTC'),
-        USDT: spotBalances.find(b => b.asset === 'USDT'),
-        isLoading: isLoadingBalances,
-        isFetching: isFetchingBalances
-    });
 
     // Place order mutation
     const placeOrderMutation = usePlaceOrder();
@@ -182,14 +172,6 @@ export default function Order() {
         }
 
         try {
-            // console.log('🟢 Placing BUY order...', {
-            //     marketSymbol: symbol,
-            //     side: 'buy',
-            //     type: orderTab,
-            //     price: orderTab === 'limit' ? parseFloat(buyPrice) : undefined,
-            //     amount: parseFloat(buyAmount),
-            // });
-
             await placeOrderMutation.mutateAsync({
                 marketSymbol: symbol,
                 side: 'buy',
@@ -198,14 +180,13 @@ export default function Order() {
                 amount: parseFloat(buyAmount),
             });
 
-            // console.log('✅ BUY order placed successfully! Balances should refetch now...');
-            toast.success(`✅ Đã đặt lệnh mua ${assetToken} thành công!`);
+            toast.success(`Đã đặt lệnh mua ${assetToken} thành công!`);
             // Reset form
             setBuyAmount('0');
             setBuySlider(0);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra';
-            toast.error(`❌ Đặt lệnh thất bại: ${errorMessage}`);
+            toast.error(`Đặt lệnh thất bại: ${errorMessage}`);
         }
     };
 
@@ -245,14 +226,14 @@ export default function Order() {
                 amount: parseFloat(sellAmount),
             });
 
-            toast.success(`✅ Đã đặt lệnh bán ${assetToken} thành công!`);
+            toast.success(`Đã đặt lệnh bán ${assetToken} thành công!`);
 
             // Reset form
             setSellAmount('0');
             setSellSlider(0);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra';
-            toast.error(`❌ Đặt lệnh thất bại: ${errorMessage}`);
+            toast.error(`Đặt lệnh thất bại: ${errorMessage}`);
         }
     };
 

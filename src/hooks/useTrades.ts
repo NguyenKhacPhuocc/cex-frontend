@@ -31,42 +31,18 @@ export interface UserTrade {
 
 // Fetch market trades (PUBLIC - no auth required)
 const fetchMarketTrades = async (symbol: string): Promise<MarketTrade[]> => {
-  console.log(`🔄 [fetchMarketTrades] Fetching market trades for ${symbol}...`);
+  console.log(`[fetchMarketTrades] Fetching market trades for ${symbol}...`);
   const result = await apiClient.get<MarketTrade[]>(
     `/api/trades/market/${symbol}`
-  );
-  console.log(
-    `✅ [fetchMarketTrades] Received ${result.length} trades:`,
-    result
-  );
-  console.log(`🕐 [fetchMarketTrades] First trade:`, result[0]);
-  console.log(
-    `🕐 [fetchMarketTrades] First trade timestamp:`,
-    result[0]?.timestamp,
-    typeof result[0]?.timestamp
-  );
-  console.log(
-    `🕐 [fetchMarketTrades] First trade keys:`,
-    result[0] ? Object.keys(result[0]) : "no data"
   );
   return result;
 };
 
 // Fetch user trades (PRIVATE - requires auth)
 const fetchUserTrades = async (symbol: string): Promise<UserTrade[]> => {
-  console.log(`🔄 [fetchUserTrades] Fetching user trades for ${symbol}...`);
+  console.log(`[fetchUserTrades] Fetching user trades for ${symbol}...`);
   const result = await apiClient.get<UserTrade[]>(
     `/api/trades/history/${symbol}`
-  );
-  console.log(`✅ [fetchUserTrades] Received ${result.length} trades:`, result);
-  console.log(
-    `🕐 [fetchUserTrades] First trade timestamp:`,
-    result[0]?.timestamp,
-    typeof result[0]?.timestamp
-  );
-  console.log(
-    `🕐 [fetchUserTrades] First trade keys:`,
-    result[0] ? Object.keys(result[0]) : "no data"
   );
   return result;
 };
@@ -89,10 +65,6 @@ export const useMarketTrades = (symbol: string) => {
   // Initialize realtime trades from fetched data
   useEffect(() => {
     if (data) {
-      console.log(
-        `📊 [useMarketTrades] Setting ${data.length} trades to state:`,
-        data
-      );
       setRealtimeTrades(data);
     }
   }, [data]);
@@ -107,38 +79,21 @@ export const useMarketTrades = (symbol: string) => {
         expectedSymbol: symbol,
       });
       if (trade.symbol === symbol) {
-        console.log("✅ [WebSocket] Symbols match! Processing trade:", trade);
+        console.log("[WebSocket] Symbols match! Processing trade:", trade);
 
         // Add new trade to the top, keep only last 50, avoid duplicates
         setRealtimeTrades((prev) => {
           // Filter out duplicate trades by id
           const filteredPrev = prev.filter((t) => t.id !== trade.id);
           const newTrades = [trade, ...filteredPrev].slice(0, 50);
-          console.log(
-            `📊 [WebSocket] Updated trades (${
-              newTrades.length
-            } total, removed ${prev.length - filteredPrev.length} duplicates):`,
-            newTrades
-          );
           return newTrades;
         });
-      } else {
-        console.log(
-          `❌ [WebSocket] Symbol mismatch: got ${trade.symbol}, expected ${symbol}`
-        );
       }
     };
 
     // Always register listener (even if not connected, it will work once connected)
     socket.on("trade:new", handleNewTrade);
-    console.log(
-      `📊 [useMarketTrades] Registered trade:new listener for ${symbol}`
-    );
-
     return () => {
-      console.log(
-        `📊 [useMarketTrades] Removing trade:new listener for ${symbol}`
-      );
       socket.off("trade:new", handleNewTrade);
     };
   }, [socket, symbol]);
@@ -167,10 +122,6 @@ export const useUserTrades = (symbol: string, enabled: boolean = true) => {
 const fetchAllUserTrades = async (): Promise<UserTrade[]> => {
   console.log(`🔄 [fetchAllUserTrades] Fetching all user trades...`);
   const result = await apiClient.get<UserTrade[]>(`/api/trades/history`);
-  console.log(
-    `✅ [fetchAllUserTrades] Received ${result.length} trades:`,
-    result
-  );
   return result;
 };
 
@@ -202,9 +153,6 @@ export const useAllUserTrades = (enabled: boolean = true) => {
       amount: number;
       timestamp: number;
     }) => {
-      console.log("🎯 [WebSocket] Trade executed (trade history tab):", data);
-      // When new trade executed, add it to trade history
-      // Invalidate to refresh trade history list
       queryClient.invalidateQueries({
         queryKey: ["trades", "user", "all"],
         refetchType: "active",

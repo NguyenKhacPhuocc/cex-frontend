@@ -44,10 +44,7 @@ export const usePlaceOrder = () => {
   return useMutation({
     mutationFn: placeOrder,
     onSuccess: (data: PlaceOrderResponse) => {
-      console.log("✅ Order placed successfully:", data);
-
-      // ✅ Optimistic update: Add order to cache immediately
-      // This ensures UI shows order instantly without waiting for refetch
+      // Optimistic update: Add order to cache immediately
       queryClient.setQueryData<Order[]>(["orders", "open"], (oldData = []) => {
         // Convert PlaceOrderResponse to Order format
         const newOrder: Order = {
@@ -96,7 +93,7 @@ export const usePlaceOrder = () => {
       });
     },
     onError: (error: Error) => {
-      console.error("❌ Error placing order:", error);
+      console.error("Error placing order:", error);
     },
   });
 };
@@ -126,20 +123,13 @@ export interface Order {
 
 // Fetch open orders (status = OPEN)
 const fetchOpenOrders = async (): Promise<Order[]> => {
-  console.log("🔄 [fetchOpenOrders] Fetching open orders...");
   const result = await apiClient.get<Order[]>("/api/orders/open");
-  console.log(`✅ [fetchOpenOrders] Received ${result.length} orders:`, result);
   return result;
 };
 
 // Fetch order history (status != OPEN)
 const fetchOrderHistory = async (): Promise<Order[]> => {
-  console.log("🔄 [fetchOrderHistory] Fetching order history...");
   const result = await apiClient.get<Order[]>("/api/orders/history");
-  console.log(
-    `✅ [fetchOrderHistory] Received ${result.length} orders:`,
-    result
-  );
   return result;
 };
 
@@ -169,10 +159,6 @@ export const useOpenOrders = (enabled: boolean = true) => {
     const ordersToUse = cachedData || data || [];
 
     if (ordersToUse.length > 0 || data) {
-      console.log(
-        `📊 [useOpenOrders] Setting ${ordersToUse.length} orders to state:`,
-        ordersToUse
-      );
       setRealtimeOrders(ordersToUse);
     }
   }, [data, queryClient]);
@@ -186,16 +172,11 @@ export const useOpenOrders = (enabled: boolean = true) => {
       orderId: string;
       status: string;
     }) => {
-      console.log("📋 [WebSocket] Order updated event received:", data);
-
-      // ✅ Optimistic update: Update order status immediately in cache and state
+      // Optimistic update: Update order status immediately in cache and state
       queryClient.setQueryData<Order[]>(["orders", "open"], (oldData = []) => {
         if (data.status === "FILLED" || data.status === "CANCELLED") {
           // Remove order immediately if filled or cancelled
           const filtered = oldData.filter((order) => order.id !== data.orderId);
-          console.log(
-            `🗑️ [Optimistic] Removed order ${data.orderId} from cache (status: ${data.status})`
-          );
           return filtered;
         } else {
           // Update order status for PARTIALLY_FILLED or other statuses

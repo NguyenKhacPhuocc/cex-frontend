@@ -135,7 +135,6 @@ export default function Chart({ chartData }: ChartProps) {
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [candleHeight, setCandleHeight] = useState(80);
     const [isResizing, setIsResizing] = useState(false);
-    const [isChartReady, setIsChartReady] = useState(false);
 
     useEffect(() => {
         if (isResizing) {
@@ -244,7 +243,32 @@ export default function Chart({ chartData }: ChartProps) {
             });
 
             if (realCandles.length > 0) {
-                const dataWithUTC7Time = realCandles.map((candle) => ({
+                // Sort và remove duplicates (lightweight-charts yêu cầu ascending order, no duplicates)
+                const sortedCandles = [...realCandles].sort((a, b) => {
+                    const timeA = convertTimeToNumber(a.time);
+                    const timeB = convertTimeToNumber(b.time);
+                    return timeA - timeB;
+                });
+
+                const uniqueCandles: typeof realCandles = [];
+                const seenTimes = new Set<number>();
+
+                for (let i = sortedCandles.length - 1; i >= 0; i--) {
+                    const candle = sortedCandles[i];
+                    const candleTime = convertTimeToNumber(candle.time);
+
+                    if (!candleTime || isNaN(candleTime) || candleTime <= 0) {
+                        console.warn('Skipping candle with invalid time:', candle);
+                        continue;
+                    }
+
+                    if (!seenTimes.has(candleTime)) {
+                        seenTimes.add(candleTime);
+                        uniqueCandles.unshift(candle);
+                    }
+                }
+
+                const dataWithUTC7Time = uniqueCandles.map((candle) => ({
                     ...candle,
                     time: convertToUTC7(convertTimeToNumber(candle.time)),
                 }));
@@ -482,7 +506,6 @@ export default function Chart({ chartData }: ChartProps) {
     // Set initial data khi symbol/timeframe thay đổi hoặc khi có data mới
     useEffect(() => {
         if (!candleSeriesRef.current || !volumeSeriesRef.current) {
-            setIsChartReady(false);
             return;
         }
 
@@ -494,14 +517,18 @@ export default function Chart({ chartData }: ChartProps) {
             lastDataHashRef.current = '';
             lastUpdateTimeRef.current = 0;
             lastTimeframeRef.current = timeframe;
-            setIsChartReady(false); // Reset ready state khi timeframe/symbol thay đổi
         }
 
-        // If no data or still loading, skip update (wait for data to load)
-        if (dataToUse.length === 0 || candlesLoading) {
-            // Reset lastUpdateTimeRef when data is cleared
+        // If still loading, skip update (wait for data to load)
+        if (candlesLoading) {
+            return;
+        }
+
+        // If no data, set empty data to show empty chart
+        if (dataToUse.length === 0) {
+            candleSeriesRef.current.setData([]);
+            volumeSeriesRef.current.setData([]);
             lastUpdateTimeRef.current = 0;
-            setIsChartReady(false);
             return;
         }
 
@@ -581,11 +608,8 @@ export default function Chart({ chartData }: ChartProps) {
                             scaleMargins: { top: volumeTopMargin, bottom: 0 },
                             autoScale: true,
                         });
-                        setIsChartReady(true);
                     }
                 }, 100);
-            } else {
-                setIsChartReady(true);
             }
 
             // Auto-fit time scale và price scale khi load data lần đầu
@@ -826,8 +850,8 @@ export default function Chart({ chartData }: ChartProps) {
                                 className="w-full h-full relative"
                             />
 
-                            {/* Loading Overlay - Hiển thị khi đang load candles */}
-                            {(candlesLoading || !isChartReady) && (
+                            {/* Loading Overlay - Chỉ hiển thị khi đang thực sự load candles */}
+                            {candlesLoading && (
                                 <div className="absolute inset-0 bg-white/80 dark:bg-[#181A20]/80 backdrop-blur-sm flex items-center justify-center z-50">
                                     <div className="flex flex-col items-center gap-4">
                                         <div className="relative w-12 h-12">

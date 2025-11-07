@@ -17,15 +17,6 @@ export default function MarketTrades() {
     // User trades (private, requires auth)
     const { data: userTrades, isLoading: userLoading } = useUserTrades(symbol, isLogin && activeTab === "myTrades");
 
-    // Debug logs
-    // useEffect(() => {
-    //     console.log(`🖼️ [MarketTrades Component] Market trades (${marketTrades?.length || 0}):`, marketTrades);
-    // }, [marketTrades]);
-
-    // useEffect(() => {
-    //     console.log(`🖼️ [MarketTrades Component] User trades (${userTrades?.length || 0}):`, userTrades);
-    // }, [userTrades]);
-
     const formatNumber = (num: number | undefined, decimals: number): string => {
         if (typeof num !== 'number' || isNaN(num)) {
             return '0';

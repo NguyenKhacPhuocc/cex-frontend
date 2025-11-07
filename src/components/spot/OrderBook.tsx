@@ -55,8 +55,10 @@ export default function OrderBook() {
     const priceChange24h = ticker?.change24h || 0;
 
     // Real-time data từ WebSocket (đã sorted từ backend)
-    const sortedAsks = orderBook?.asks || [];
-    const sortedBids = orderBook?.bids || [];
+    // Giới hạn số lượng hiển thị để tránh vỡ giao diện (top 20 orders mỗi bên)
+    const MAX_ORDERS_DISPLAY = 18;
+    const sortedAsks = (orderBook?.asks || []).slice(0, MAX_ORDERS_DISPLAY);
+    const sortedBids = (orderBook?.bids || []).slice(0, MAX_ORDERS_DISPLAY);
 
     // Tìm maxAmount trong cả asks và bids để normalize width
     const allAmounts = [
@@ -200,7 +202,7 @@ export default function OrderBook() {
     }, [trades, timeframe, currentTime]);
 
     return (
-        <div id="orderbook" className="relative w-[30%]">
+        <div id="orderbook" className="relative w-[30%] h-full">
             <div ref={containerRef} className="relative bg-white dark:bg-[#181A20] rounded-[8px] flex flex-col overflow-visible h-full">
                 <div className=" px-[16px] py-[10px]  text-[14px] font-[500]  border-b border-[#F5F5F5] dark:border-[#373c43] dark:text-[#eaecef]">Sổ lệnh</div>
 
@@ -275,7 +277,7 @@ export default function OrderBook() {
                 <div className="flex-1 flex flex-col text-[12px] relative h-full overflow-hidden">
                     {/* Asks (Sell Orders) - Display từ cao -> thấp */}
                     {(viewMode === "all" || viewMode === "asks") && (
-                        <div className="flex-1 relative flex flex-col justify-end overflow-y-auto">
+                        <div className={`relative flex flex-col justify-end overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${viewMode === "all" ? "flex-1 max-h-[calc(50%-18px)]" : "flex-1"}`}>
                             {sortedAsks.slice().map((ask, index) => {
                                 const isAfterHover = hoveredOrder?.side === "ask" && index >= hoveredOrder.index;
                                 const isHovered = hoveredOrder?.side === "ask" && index === hoveredOrder.index;
@@ -342,7 +344,7 @@ export default function OrderBook() {
 
                     {/* Bids (Buy Orders) - Display từ cao -> thấp (gần current price nhất ở trên) */}
                     {(viewMode === "all" || viewMode === "bids") && (
-                        <div className="flex-1 relative overflow-y-auto">
+                        <div className={`relative overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${viewMode === "all" ? "flex-1 max-h-[calc(50%-18px)]" : "flex-1"}`}>
                             {sortedBids.map((bid, index) => {
                                 const isAfterHover = hoveredOrder?.side === "bid" && index <= hoveredOrder.index;
                                 const isHovered = hoveredOrder?.side === "bid" && index === hoveredOrder.index;
