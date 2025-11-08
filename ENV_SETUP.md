@@ -31,15 +31,15 @@ Next.js hỗ trợ nhiều file env, load theo thứ tự ưu tiên:
 Tạo file `.env.local` trong thư mục `frontend/`:
 
 ```env
-# ⚠️ QUAN TRỌNG: KHÔNG dùng dấu ngoặc kép cho giá trị!
+#   QUAN TRỌNG: KHÔNG dùng dấu ngoặc kép cho giá trị!
 NEXT_PUBLIC_URL_BACKEND=https://cex-backend-ey47.onrender.com
 ```
 
 **Ưu điểm:**
 
-- ✅ Không commit vào git (an toàn)
-- ✅ Override tất cả file khác
-- ✅ Dễ dàng thay đổi cho mỗi developer
+- Không commit vào git (an toàn)
+- Override tất cả file khác
+- Dễ dàng thay đổi cho mỗi developer
 
 #### Option 2: `.env` (Cho Team)
 
@@ -52,9 +52,9 @@ NEXT_PUBLIC_URL_BACKEND=http://localhost:8000
 
 **Ưu điểm:**
 
-- ✅ Có thể commit vào git
-- ✅ Team có thể share default values
-- ⚠️ Mỗi developer vẫn cần `.env.local` để override
+- Có thể commit vào git
+- Team có thể share default values
+- Mỗi developer vẫn cần `.env.local` để override
 
 #### Option 3: `.env.development` + `.env.production`
 
@@ -74,8 +74,8 @@ NEXT_PUBLIC_URL_BACKEND=https://cex-backend-ey47.onrender.com
 
 **Ưu điểm:**
 
-- ✅ Tự động switch theo environment
-- ✅ Có thể commit vào git
+- Tự động switch theo environment
+- Có thể commit vào git
 
 ### 2. Production (Vercel)
 
@@ -85,7 +85,7 @@ NEXT_PUBLIC_URL_BACKEND=https://cex-backend-ey47.onrender.com
 2. Thêm biến:
    - **Name**: `NEXT_PUBLIC_URL_BACKEND`
    - **Value**: `https://cex-backend-ey47.onrender.com`
-   - **⚠️ KHÔNG dùng dấu ngoặc kép!**
+   - ** KHÔNG dùng dấu ngoặc kép!**
    - **Environment**: Production (hoặc Preview/Development nếu cần)
 3. Redeploy để áp dụng thay đổi
 
@@ -95,15 +95,15 @@ NEXT_PUBLIC_URL_BACKEND=https://cex-backend-ey47.onrender.com
 - Không cần upload file `.env.local` lên Vercel
 - Variables trong Vercel dashboard sẽ override file `.env*` trong repo
 
-## ⚠️ Lưu Ý Quan Trọng
+## Lưu Ý Quan Trọng
 
 1. **KHÔNG dùng dấu ngoặc kép** trong bất kỳ file env nào hoặc Vercel dashboard:
 
    ```env
-   # ✅ ĐÚNG
+   #  ĐÚNG
    NEXT_PUBLIC_URL_BACKEND=https://cex-backend-ey47.onrender.com
 
-   # ❌ SAI - sẽ bị đọc như là string với dấu ngoặc kép
+   #   SAI - sẽ bị đọc như là string với dấu ngoặc kép
    NEXT_PUBLIC_URL_BACKEND="https://cex-backend-ey47.onrender.com"
    ```
 
@@ -139,20 +139,20 @@ NEXT_PUBLIC_URL_BACKEND=https://cex-backend-ey47.onrender.com
 
 **Giải pháp:**
 
-1. ✅ Tạo file `frontend/.env.local` (không có dấu ngoặc kép) cho local dev
-2. ✅ Hoặc dùng `.env` / `.env.development` nếu muốn share với team
-3. ✅ Restart dev server sau khi thay đổi
-4. ✅ Kiểm tra console logs để verify
-5. ✅ Nếu deploy Vercel: Set trong dashboard (không cần file trên server) và redeploy
+1.  Tạo file `frontend/.env.local` (không có dấu ngoặc kép) cho local dev
+2.  Hoặc dùng `.env` / `.env.development` nếu muốn share với team
+3.  Restart dev server sau khi thay đổi
+4.  Kiểm tra console logs để verify
+5.  Nếu deploy Vercel: Set trong dashboard (không cần file trên server) và redeploy
 
 ## 📊 So Sánh Các Options
 
 | File               | Khi nào dùng       | Commit vào git? | Priority                      |
 | ------------------ | ------------------ | --------------- | ----------------------------- |
-| `.env.local`       | Local dev, secrets | ❌ Không        | ⭐⭐⭐ Cao nhất               |
-| `.env.development` | Dev environment    | ✅ Có thể       | ⭐⭐                          |
-| `.env.production`  | Production build   | ✅ Có thể       | ⭐⭐                          |
-| `.env`             | Default values     | ✅ Có thể       | ⭐ Thấp nhất                  |
+| `.env.local`       | Local dev, secrets | Không           | ⭐⭐⭐ Cao nhất               |
+| `.env.development` | Dev environment    | Có thể          | ⭐⭐                          |
+| `.env.production`  | Production build   | Có thể          | ⭐⭐                          |
+| `.env`             | Default values     | Có thể          | ⭐ Thấp nhất                  |
 | Vercel Dashboard   | Production deploy  | N/A             | ⭐⭐⭐ Cao nhất (trên Vercel) |
 
 ## 🎯 Khuyến Nghị

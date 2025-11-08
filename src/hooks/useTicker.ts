@@ -36,17 +36,17 @@ export const useTicker = (symbol: string) => {
 
     // Always register listeners (they will work once connected)
     const handleSnapshot = (data: Ticker) => {
-      console.log(`📸 [useTicker] Snapshot received:`, {
+      console.log(`[useTicker] Snapshot received:`, {
         receivedSymbol: data.symbol,
         expectedSymbol: symbol.toUpperCase(),
       });
       if (data.symbol === symbol.toUpperCase()) {
-        console.log("✅ [useTicker] Snapshot symbols match!");
+        console.log("[useTicker] Snapshot symbols match!");
         setTicker(data);
         setIsLoading(false);
         setError(null);
       } else {
-        console.log(`❌ [useTicker] Snapshot symbol mismatch!`);
+        console.log(`  [useTicker] Snapshot symbol mismatch!`);
       }
     };
 
@@ -63,13 +63,13 @@ export const useTicker = (symbol: string) => {
         setTicker(updatedTicker);
         setError(null);
       } else {
-        console.log(`❌ [useTicker] Update symbol mismatch!`);
+        console.log(`  [useTicker] Update symbol mismatch!`);
       }
     };
 
     // Listen for errors
     const handleError = (errorData: { message: string }) => {
-      console.error(`❌ [useTicker] Error for ${symbol}:`, errorData);
+      console.error(`  [useTicker] Error for ${symbol}:`, errorData);
       setError(new Error(errorData.message));
       setIsLoading(false);
     };

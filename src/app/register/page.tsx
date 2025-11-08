@@ -50,7 +50,7 @@ export default function RegisterPage() {
                 router.push('/login');
             }, 1500);
         } catch (err: unknown) {
-            console.error('❌ Register error:', err);
+            console.error('  Register error:', err);
             const error = err as { response?: { data?: { message?: string | string[] } }; message?: string };
             const errorMessage = error.response?.data?.message || error.message || 'Đã xảy ra lỗi khi đăng ký';
 

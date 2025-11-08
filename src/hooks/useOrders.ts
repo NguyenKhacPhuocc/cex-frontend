@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
 
 export interface PlaceOrderRequest {
@@ -143,6 +143,9 @@ export const useOpenOrders = (enabled: boolean = true) => {
   const queryClient = useQueryClient();
   const [realtimeOrders, setRealtimeOrders] = useState<Order[]>([]);
 
+  // Batch refetch for trade executed events to prevent rate limiting
+  const tradeExecutedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Fetch initial orders
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["orders", "open"],
@@ -227,9 +230,17 @@ export const useOpenOrders = (enabled: boolean = true) => {
         tradeData
       );
 
-      // Refetch immediately to get updated filled amounts and statuses
-      // No delay needed - backend already updated DB and cache
-      refetch();
+      // Debounce refetch: clear existing timeout and create new one
+      // This batches multiple trade executions into a single API call
+      if (tradeExecutedTimeoutRef.current) {
+        clearTimeout(tradeExecutedTimeoutRef.current);
+      }
+
+      // Only refetch after 500ms of no new trades (batches multiple trades)
+      tradeExecutedTimeoutRef.current = setTimeout(() => {
+        refetch();
+        tradeExecutedTimeoutRef.current = null;
+      }, 500);
     };
 
     socket.on("order:updated", handleOrderUpdate);
@@ -238,6 +249,11 @@ export const useOpenOrders = (enabled: boolean = true) => {
     return () => {
       socket.off("order:updated", handleOrderUpdate);
       socket.off("trade:executed", handleTradeExecuted);
+      // Clear pending timeout on cleanup
+      if (tradeExecutedTimeoutRef.current) {
+        clearTimeout(tradeExecutedTimeoutRef.current);
+        tradeExecutedTimeoutRef.current = null;
+      }
     };
   }, [socket, isConnected, enabled, refetch, queryClient]);
 
@@ -256,6 +272,9 @@ export const useOpenOrders = (enabled: boolean = true) => {
 export const useOrderHistory = (enabled: boolean = true) => {
   const { socket, isConnected } = useWebSocketContext();
   const queryClient = useQueryClient();
+
+  // Batch invalidation for trade executed events to prevent rate limiting
+  const tradeExecutedTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch order history
   const query = useQuery({
@@ -287,11 +306,21 @@ export const useOrderHistory = (enabled: boolean = true) => {
     };
 
     const handleTradeExecuted = () => {
-      // When trade executed, order might be filled/partially filled → move to history
-      queryClient.invalidateQueries({
-        queryKey: ["orders", "history"],
-        refetchType: "active",
-      });
+      // Debounce invalidation: clear existing timeout and create new one
+      // This batches multiple trade executions into a single API call
+      if (tradeExecutedTimeoutRef.current) {
+        clearTimeout(tradeExecutedTimeoutRef.current);
+      }
+
+      // Only invalidate after 500ms of no new trades (batches multiple trades)
+      tradeExecutedTimeoutRef.current = setTimeout(() => {
+        // When trade executed, order might be filled/partially filled → move to history
+        queryClient.invalidateQueries({
+          queryKey: ["orders", "history"],
+          refetchType: "active",
+        });
+        tradeExecutedTimeoutRef.current = null;
+      }, 500);
     };
 
     socket.on("order:updated", handleOrderUpdate);
@@ -300,6 +329,11 @@ export const useOrderHistory = (enabled: boolean = true) => {
     return () => {
       socket.off("order:updated", handleOrderUpdate);
       socket.off("trade:executed", handleTradeExecuted);
+      // Clear pending timeout on cleanup
+      if (tradeExecutedTimeoutRef.current) {
+        clearTimeout(tradeExecutedTimeoutRef.current);
+        tradeExecutedTimeoutRef.current = null;
+      }
     };
   }, [socket, isConnected, enabled, queryClient]);
 

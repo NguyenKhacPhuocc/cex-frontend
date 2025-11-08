@@ -20,7 +20,7 @@ const fetchBalances = async (type: WalletType): Promise<Balance[]> => {
     console.log(`✅ ${type} balances fetched:`, data);
     return data;
   } catch (error) {
-    console.error(`❌ Error fetching ${type} balances:`, error);
+    console.error(`  Error fetching ${type} balances:`, error);
     throw error; // Re-throw to let React Query handle it
   }
 };

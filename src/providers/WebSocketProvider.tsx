@@ -139,6 +139,9 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
             }
         };
 
+        // Batch invalidation for trade executed events to prevent rate limiting
+        let tradeExecutedTimeout: NodeJS.Timeout | null = null;
+
         // Trade executed - Use WebSocket data to update balance optimistically
         const handleTradeExecuted = (data: {
             tradeId: string;
@@ -149,49 +152,98 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
             amount: number;
             timestamp: number;
         }) => {
+            // Validate data to prevent NaN
+            if (
+                !data ||
+                typeof data.price !== 'number' ||
+                typeof data.amount !== 'number' ||
+                isNaN(data.price) ||
+                isNaN(data.amount) ||
+                data.price <= 0 ||
+                data.amount <= 0 ||
+                !data.symbol ||
+                !data.side
+            ) {
+                console.warn('[WebSocket] Invalid trade:executed data, skipping optimistic update:', data);
+                return;
+            }
+
+            // Update balance optimistically immediately (no API call)
             queryClient.setQueryData<Array<{ asset: string; available: string; locked: string }>>(
                 ["balances", "spot"],
                 (oldBalances = []) => {
                     if (!oldBalances.length) return oldBalances;
 
                     const tradeValue = data.price * data.amount;
-                    const [baseAsset, quoteAsset] = data.symbol.split("/");
+
+                    // Validate tradeValue to prevent NaN
+                    if (isNaN(tradeValue) || tradeValue <= 0) {
+                        console.warn('[WebSocket] Invalid tradeValue, skipping optimistic update:', { price: data.price, amount: data.amount, tradeValue });
+                        return oldBalances;
+                    }
+
+                    const symbolParts = data.symbol.split("/");
+                    if (symbolParts.length !== 2) {
+                        console.warn('[WebSocket] Invalid symbol format, skipping optimistic update:', data.symbol);
+                        return oldBalances;
+                    }
+
+                    const [baseAsset, quoteAsset] = symbolParts;
 
                     return oldBalances.map((balance) => {
+                        // Validate balance.available is a valid number
+                        const currentAvailable = Number(balance.available);
+                        if (isNaN(currentAvailable)) {
+                            console.warn('[WebSocket] Invalid balance.available, skipping update:', balance);
+                            return balance;
+                        }
+
                         if (data.side === "BUY") {
                             // Mua: trừ quoteAsset (USDT), cộng baseAsset (BTC)
                             if (balance.asset === quoteAsset) {
-                                const newAvailable = Math.max(
-                                    0,
-                                    Number(balance.available) - tradeValue
-                                );
+                                const newAvailable = Math.max(0, currentAvailable - tradeValue);
+                                if (isNaN(newAvailable)) {
+                                    console.warn('[WebSocket] NaN detected in newAvailable (BUY quoteAsset):', { currentAvailable, tradeValue });
+                                    return balance;
+                                }
                                 return {
                                     ...balance,
                                     available: newAvailable.toFixed(8),
                                 };
                             }
                             if (balance.asset === baseAsset) {
+                                const newAvailable = currentAvailable + data.amount;
+                                if (isNaN(newAvailable)) {
+                                    console.warn('[WebSocket] NaN detected in newAvailable (BUY baseAsset):', { currentAvailable, amount: data.amount });
+                                    return balance;
+                                }
                                 return {
                                     ...balance,
-                                    available: (Number(balance.available) + data.amount).toFixed(8),
+                                    available: newAvailable.toFixed(8),
                                 };
                             }
                         } else {
                             // Bán: trừ baseAsset (BTC), cộng quoteAsset (USDT)
                             if (balance.asset === baseAsset) {
-                                const newAvailable = Math.max(
-                                    0,
-                                    Number(balance.available) - data.amount
-                                );
+                                const newAvailable = Math.max(0, currentAvailable - data.amount);
+                                if (isNaN(newAvailable)) {
+                                    console.warn('[WebSocket] NaN detected in newAvailable (SELL baseAsset):', { currentAvailable, amount: data.amount });
+                                    return balance;
+                                }
                                 return {
                                     ...balance,
                                     available: newAvailable.toFixed(8),
                                 };
                             }
                             if (balance.asset === quoteAsset) {
+                                const newAvailable = currentAvailable + tradeValue;
+                                if (isNaN(newAvailable)) {
+                                    console.warn('[WebSocket] NaN detected in newAvailable (SELL quoteAsset):', { currentAvailable, tradeValue });
+                                    return balance;
+                                }
                                 return {
                                     ...balance,
-                                    available: (Number(balance.available) + tradeValue).toFixed(8),
+                                    available: newAvailable.toFixed(8),
                                 };
                             }
                         }
@@ -200,17 +252,26 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
                 }
             );
 
-            createTimeout(() => {
+            // Batch invalidations: clear existing timeout and create new one
+            // This ensures we only invalidate once after all trades are processed
+            if (tradeExecutedTimeout) {
+                clearTimeout(tradeExecutedTimeout);
+            }
+
+            // Debounce: only invalidate after 500ms of no new trades
+            // This batches multiple trade executions into a single API call
+            tradeExecutedTimeout = createTimeout(() => {
+                // Only invalidate once after all trades are processed
                 queryClient.invalidateQueries({
                     queryKey: ["orders"],
                     refetchType: "active",
                 });
-                // Also invalidate balance as backup to ensure accuracy
+                // Also invalidate balance as backup to ensure accuracy (but only once)
                 queryClient.invalidateQueries({
                     queryKey: ["balances", "spot"],
                     refetchType: "active",
                 });
-            }, 100);
+            }, 500); // 500ms debounce to batch multiple trades
         };
 
         // Register all event listeners
@@ -254,7 +315,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     // Memoize context value to prevent unnecessary re-renders
     const contextValue = useMemo(() => ({
         socket, isConnected
-    }),[socket, isConnected]);
+    }), [socket, isConnected]);
 
     return (
         <WebSocketContext.Provider value={contextValue}>

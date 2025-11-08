@@ -37,19 +37,19 @@ const fetchCandles = async (
     );
     if (response.length === 0) {
       console.warn(
-        `⚠️ No candles found for ${symbol}:${timeframe}. This might be because there's no historical data yet.`
+        `  No candles found for ${symbol}:${timeframe}. This might be because there's no historical data yet.`
       );
     }
     return response;
   } catch (error) {
     console.error(
-      `❌ Failed to fetch candles for ${symbol}:${timeframe}:`,
+      `  Failed to fetch candles for ${symbol}:${timeframe}:`,
       error
     );
     const err = error as { response?: { status?: number } };
     if (err?.response?.status === 400) {
       console.error(
-        `❌ Bad request - check if timeframe "${timeframe}" is valid`
+        `  Bad request - check if timeframe "${timeframe}" is valid`
       );
     }
     return [];
@@ -110,7 +110,7 @@ export const useCandles = (symbol: string, timeframe: string) => {
         );
       } else {
         console.warn(
-          `⚠️ No historical candles for ${symbol}:${timeframe}. Chart will be empty until new trades create candles.`
+          `  No historical candles for ${symbol}:${timeframe}. Chart will be empty until new trades create candles.`
         );
       }
     }

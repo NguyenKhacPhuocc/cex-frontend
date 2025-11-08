@@ -63,7 +63,7 @@ export default function PasswordStrengthIndicator({ password }: PasswordStrength
         const commonPasswords = ['password', '123456', 'qwerty', 'abc123', '12345678'];
         if (commonPasswords.includes(pwd.toLowerCase())) {
             score = Math.max(0, score - 2);
-            feedback.push('⚠️ Mật khẩu quá phổ biến');
+            feedback.push('  Mật khẩu quá phổ biến');
         }
 
         // Normalize score to 0-4

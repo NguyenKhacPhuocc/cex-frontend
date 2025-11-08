@@ -7,7 +7,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  // ✅ Token được gửi tự động qua httpOnly cookies
+  //  Token được gửi tự động qua httpOnly cookies
 });
 
 // Flag to prevent multiple refresh calls
@@ -95,7 +95,7 @@ api.interceptors.response.use(
       processQueue(refreshError as Error);
       isRefreshing = false;
 
-      // ❌ KHÔNG tự động redirect về /login!
+      //   KHÔNG tự động redirect về /login!
       // Lý do: Trang chủ và nhiều trang khác là PUBLIC, không cần đăng nhập
       // Chỉ return error, để component tự xử lý (hiện login button vs user menu)
 

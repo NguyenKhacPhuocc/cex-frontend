@@ -29,7 +29,7 @@ export default function LoginPage() {
                 password,
             });
 
-            // ✅ Tokens đã được set trong httpOnly cookies - KHÔNG cần localStorage!
+            //  Tokens đã được set trong httpOnly cookies - KHÔNG cần localStorage!
             // Backend tự động set cookies: accessToken & refreshToken
 
             // Show success toast
@@ -42,7 +42,7 @@ export default function LoginPage() {
             // Redirect to home AFTER auth status is updated
             router.push('/');
         } catch (err: unknown) {
-            console.error('❌ Login error:', err);
+            console.error('  Login error:', err);
 
             // Extract error message from backend
             let errorMessage = 'Đã xảy ra lỗi khi đăng nhập';
