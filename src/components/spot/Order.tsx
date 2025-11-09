@@ -1,10 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSpot } from "@/contexts/SpotContext";
 import { useAllBalances, Balance } from "@/hooks/useBalances";
 import { usePlaceOrder } from "@/hooks/useOrders";
-import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import { useTicker } from "@/hooks/useTicker";
 import { HiDotsVertical } from "react-icons/hi";
 import { toast } from "react-hot-toast";
@@ -26,6 +25,45 @@ export default function Order() {
     const [sellTpSl, setSellTpSl] = useState(false);
     const [buySlider, setBuySlider] = useState<number>(0);
     const [sellSlider, setSellSlider] = useState<number>(0);
+
+    // Input asset type: 'base' (BTC) or 'quote' (USDT)
+    const [buyInputAsset, setBuyInputAsset] = useState<'base' | 'quote'>('base');
+    const [sellInputAsset, setSellInputAsset] = useState<'base' | 'quote'>('quote');
+
+    // Dropdown state
+    const [buyAssetDropdownOpen, setBuyAssetDropdownOpen] = useState(false);
+    const [sellAssetDropdownOpen, setSellAssetDropdownOpen] = useState(false);
+
+    // Refs for dropdown click outside detection
+    const buyDropdownRef = useRef<HTMLDivElement>(null);
+    const sellDropdownRef = useRef<HTMLDivElement>(null);
+
+    // Close dropdowns when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (buyDropdownRef.current && !buyDropdownRef.current.contains(event.target as Node)) {
+                setBuyAssetDropdownOpen(false);
+            }
+            if (sellDropdownRef.current && !sellDropdownRef.current.contains(event.target as Node)) {
+                setSellAssetDropdownOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
+    // Reset input asset type to 'base' when switching to limit orders
+    useEffect(() => {
+        if (orderTab === 'limit') {
+            setBuyInputAsset('base');
+            setSellInputAsset('base');
+            setBuyAssetDropdownOpen(false);
+            setSellAssetDropdownOpen(false);
+        }
+    }, [orderTab]);
 
     // Get current ticker price for market orders
 
@@ -94,43 +132,102 @@ export default function Order() {
     };
 
     // Tính toán Tổng (Total) = Giá × Số lượng
-    const buyTotal = buyPrice && buyAmount ? (parseFloat(buyPrice) * parseFloat(buyAmount)).toFixed(5) : '0.00000';
-    const sellTotal = sellPrice && sellAmount ? (parseFloat(sellPrice) * parseFloat(sellAmount)).toFixed(5) : '0.00000';
+    // For BUY: Total depends on input asset type
+    const buyTotal = (() => {
+        if (!buyPrice || !buyAmount) return '0.00000';
+        if (buyInputAsset === 'quote') {
+            // Input is USDT, amount is in USDT
+            return parseFloat(buyAmount).toFixed(5);
+        } else {
+            // Input is BTC, total = price * amount
+            return (parseFloat(buyPrice) * parseFloat(buyAmount)).toFixed(5);
+        }
+    })();
 
-    // Tính toán Mua tối đa = Số dư baseToken / Giá
+    // For SELL: Total depends on input asset type
+    const sellTotal = (() => {
+        if (!sellPrice || !sellAmount) return '0.00000';
+        if (sellInputAsset === 'base') {
+            // Input is BTC, total = price * amount
+            return (parseFloat(sellPrice) * parseFloat(sellAmount)).toFixed(5);
+        } else {
+            // Input is USDT, amount is in USDT
+            return parseFloat(sellAmount).toFixed(5);
+        }
+    })();
+
+    // Tính toán Mua tối đa - luôn trả về số lượng BTC có thể mua
     const getMaxBuyAmount = (): string => {
-        if (!isLogin || !buyPrice) return '--';
-        const price = parseFloat(buyPrice);
-        if (price <= 0) return '--';
-        const balance = getRawBalance(baseToken);
-        const maxAmount = balance / price;
-        return maxAmount.toFixed(5);
+        if (!isLogin) return '--';
+
+        // Always calculate max BTC that can be bought
+        if (orderTab === 'market') {
+            if (!ticker?.price) return '--';
+            const price = ticker.price;
+            const balance = getRawBalance(baseToken);
+            const maxAmount = balance / price;
+            return maxAmount.toFixed(5);
+        } else {
+            if (!buyPrice) return '--';
+            const price = parseFloat(buyPrice);
+            if (price <= 0) return '--';
+            const balance = getRawBalance(baseToken);
+            const maxAmount = balance / price;
+            return maxAmount.toFixed(5);
+        }
     };
 
-    // Tính toán Bán tối đa (Total USDT) = Số dư assetToken × Giá
+    // Tính toán Bán tối đa
     const getMaxSellTotal = (): string => {
-        if (!isLogin || !sellPrice) return '--';
-        const price = parseFloat(sellPrice);
-        if (price <= 0) return '--';
-        const balance = getRawBalance(assetToken);
-        const maxTotal = balance * price;
-        return maxTotal.toFixed(2);
+        if (!isLogin) return '--';
+
+        if (orderTab === 'limit') {
+            // Limit orders: Always return USDT (price * available BTC)
+            if (!sellPrice) return '--';
+            const price = parseFloat(sellPrice);
+            if (price <= 0) return '--';
+            const balance = getRawBalance(assetToken);
+            const maxTotal = balance * price;
+            return maxTotal.toFixed(2);
+        } else {
+            // Market orders: depends on input asset type
+            if (sellInputAsset === 'base') {
+                // Input is BTC - max is available BTC
+                const balance = getRawBalance(assetToken);
+                return balance.toFixed(5);
+            } else {
+                // Input is USDT - max is available BTC * price
+                if (!ticker?.price) return '--';
+                const price = ticker.price;
+                const balance = getRawBalance(assetToken);
+                const maxTotal = balance * price;
+                return maxTotal.toFixed(2);
+            }
+        }
     };
 
     // Handler cho Buy Slider
     const handleBuySlider = (value: number) => {
         setBuySlider(value);
 
-        if (!isLogin || !buyPrice) return;
+        if (!isLogin) return;
 
-        const price = parseFloat(buyPrice);
-        if (price <= 0) return;
+        if (buyInputAsset === 'quote') {
+            // Input is USDT - slider represents % of USDT to use
+            const balance = getRawBalance(baseToken);
+            const usdtToUse = (balance * value) / 100;
+            setBuyAmount(usdtToUse.toString());
+        } else {
+            // Input is BTC - slider represents % of max BTC we can buy with all USDT
+            if (orderTab === 'market' && !ticker?.price) return;
+            const price = orderTab === 'market' ? (ticker?.price || 0) : parseFloat(buyPrice);
+            if (price <= 0) return;
 
-        const balance = getRawBalance(baseToken);
-        const usdtToUse = (balance * value) / 100;
-        const amount = usdtToUse / price;
-
-        setBuyAmount(amount.toString());
+            const balance = getRawBalance(baseToken);
+            const maxBTC = balance / price;
+            const amount = (maxBTC * value) / 100;
+            setBuyAmount(amount.toString());
+        }
     };
 
     // Handler cho Sell Slider
@@ -139,10 +236,22 @@ export default function Order() {
 
         if (!isLogin) return;
 
-        const balance = getRawBalance(assetToken);
-        const amount = (balance * value) / 100;
+        if (sellInputAsset === 'base') {
+            // Input is BTC - slider represents % of BTC to sell
+            const balance = getRawBalance(assetToken);
+            const amount = (balance * value) / 100;
+            setSellAmount(amount.toString());
+        } else {
+            // Input is USDT - slider represents % of max USDT we can receive (all BTC)
+            if (orderTab === 'market' && !ticker?.price) return;
+            const price = orderTab === 'market' ? (ticker?.price || 0) : parseFloat(sellPrice);
+            if (price <= 0) return;
 
-        setSellAmount(amount.toString());
+            const balance = getRawBalance(assetToken);
+            const maxUSDT = balance * price; // Total USDT value of all BTC
+            const usdtToReceive = (maxUSDT * value) / 100;
+            setSellAmount(usdtToReceive.toString());
+        }
     };
 
     // Handler cho Buy Order
@@ -163,18 +272,71 @@ export default function Order() {
             return;
         }
 
-        // Check balance
-        const balance = getRawBalance(baseToken);
-        const total = orderTab === 'limit'
-            ? parseFloat(buyPrice) * parseFloat(buyAmount)
-            : parseFloat(buyAmount); // For market orders, amount is in USDT
+        // Check balance based on input asset type
+        if (buyInputAsset === 'quote') {
+            // Input is USDT - check USDT balance
+            const balance = getRawBalance(baseToken);
+            const usdtAmount = parseFloat(buyAmount);
 
-        if (balance < total) {
-            toast.error(`Số dư ${baseToken} không đủ`);
-            return;
+            // Validate minimum order value for market orders with USDT input
+            if (orderTab === 'market' && usdtAmount < 5) {
+                toast.error('Số lượng tối thiểu là 5 USDT');
+                return;
+            }
+
+            if (balance < usdtAmount) {
+                toast.error(`Số dư ${baseToken} không đủ`);
+                return;
+            }
+        } else {
+            // Input is BTC - check USDT balance
+            if (orderTab === 'market') {
+                // Market order: will lock all USDT, just check if we have any
+                const balance = getRawBalance(baseToken);
+                if (balance <= 0) {
+                    toast.error(`Số dư ${baseToken} không đủ`);
+                    return;
+                }
+            } else {
+                // Limit order: check if we have enough USDT for the order
+                const balance = getRawBalance(baseToken);
+                const total = parseFloat(buyPrice) * parseFloat(buyAmount);
+                if (balance < total) {
+                    toast.error(`Số dư ${baseToken} không đủ`);
+                    return;
+                }
+            }
         }
 
         try {
+            // Calculate actual amount to send to backend
+            // Backend always expects amount in base asset (BTC)
+            let amountToSend = parseFloat(buyAmount);
+            let originalQuoteAmount: number | undefined = undefined;
+
+            if (buyInputAsset === 'quote') {
+                // Input is USDT, need to convert to BTC
+                const usdtAmount = parseFloat(buyAmount);
+
+                if (orderTab === 'market') {
+                    // Market order: use current ticker price
+                    if (!ticker?.price) {
+                        toast.error('Không thể lấy giá thị trường hiện tại');
+                        return;
+                    }
+                    amountToSend = usdtAmount / ticker.price;
+                    // Store original USDT amount for backend to lock exactly this amount
+                    originalQuoteAmount = usdtAmount;
+                } else {
+                    // Limit order: use specified price
+                    amountToSend = usdtAmount / parseFloat(buyPrice);
+                    // For limit orders, backend can calculate USDT from price * amount
+                    // But still send for clarity
+                    originalQuoteAmount = usdtAmount;
+                }
+            }
+            // If input is base (BTC), amount is already correct
+
             // For market orders, include current price at the time of order placement
             const marketPrice = orderTab === 'market' && ticker?.price ? ticker.price : undefined;
 
@@ -183,12 +345,14 @@ export default function Order() {
                 side: 'buy',
                 type: orderTab as 'limit' | 'market',
                 price: orderTab === 'limit' ? parseFloat(buyPrice) : marketPrice,
-                amount: parseFloat(buyAmount),
+                amount: amountToSend,
+                inputAssetType: buyInputAsset, // Send input asset type
+                originalQuoteAmount: originalQuoteAmount, // Send original USDT amount if input is USDT
             });
 
             toast.success(`Đã đặt lệnh mua ${assetToken} thành công!`);
             // Reset form
-            setBuyAmount('0');
+            setBuyAmount('');
             setBuySlider(0);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra';
@@ -214,16 +378,68 @@ export default function Order() {
             return;
         }
 
-        // Check balance
-        const balance = getRawBalance(assetToken);
-        const amount = parseFloat(sellAmount);
+        // Check balance based on input asset type
+        if (sellInputAsset === 'base') {
+            // Input is BTC - check BTC balance
+            const balance = getRawBalance(assetToken);
+            const btcAmount = parseFloat(sellAmount);
 
-        if (balance < amount) {
-            toast.error(`Số dư ${assetToken} không đủ`);
-            return;
+            if (balance < btcAmount) {
+                toast.error(`Số dư ${assetToken} không đủ`);
+                return;
+            }
+        } else {
+            // Input is USDT - for market orders, will lock all BTC
+            if (orderTab === 'market') {
+                // Market order: will lock all BTC, just check if we have any
+                const usdtAmount = parseFloat(sellAmount);
+
+                // Validate minimum order value for market orders with USDT input
+                if (usdtAmount < 5) {
+                    toast.error('Số lượng tối thiểu là 5 USDT');
+                    return;
+                }
+
+                const balance = getRawBalance(assetToken);
+                if (balance <= 0) {
+                    toast.error(`Số dư ${assetToken} không đủ`);
+                    return;
+                }
+            } else {
+                // Limit order: calculate BTC needed from USDT amount
+                const price = parseFloat(sellPrice);
+                const usdtAmount = parseFloat(sellAmount);
+                const btcNeeded = usdtAmount / price;
+                const balance = getRawBalance(assetToken);
+
+                if (balance < btcNeeded) {
+                    toast.error(`Số dư ${assetToken} không đủ`);
+                    return;
+                }
+            }
         }
 
         try {
+            // Calculate actual amount to send to backend
+            // Backend always expects amount in base asset (BTC)
+            let amountToSend = parseFloat(sellAmount);
+
+            if (sellInputAsset === 'quote') {
+                // Input is USDT, need to convert to BTC
+                if (orderTab === 'market') {
+                    // Market order: use current ticker price
+                    if (!ticker?.price) {
+                        toast.error('Không thể lấy giá thị trường hiện tại');
+                        return;
+                    }
+                    amountToSend = parseFloat(sellAmount) / ticker.price;
+                } else {
+                    // Limit order: use specified price
+                    amountToSend = parseFloat(sellAmount) / parseFloat(sellPrice);
+                }
+            }
+            // If input is base (BTC), amount is already correct
+
             // For market orders, include current price at the time of order placement
             const marketPrice = orderTab === 'market' && ticker?.price ? ticker.price : undefined;
 
@@ -232,13 +448,15 @@ export default function Order() {
                 side: 'sell',
                 type: orderTab as 'limit' | 'market',
                 price: orderTab === 'limit' ? parseFloat(sellPrice) : marketPrice,
-                amount: parseFloat(sellAmount),
+                amount: amountToSend,
+                inputAssetType: sellInputAsset, // Send input asset type
+                originalQuoteAmount: sellInputAsset === 'quote' ? parseFloat(sellAmount) : undefined, // Send original USDT amount if input is USDT
             });
 
             toast.success(`Đã đặt lệnh bán ${assetToken} thành công!`);
 
             // Reset form
-            setSellAmount('0');
+            setSellAmount('');
             setSellSlider(0);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra';
@@ -247,7 +465,7 @@ export default function Order() {
     };
 
     return (
-        <div id="order" className="bg-white dark:bg-[#181A20] min-h-[350px] rounded-[8px] flex flex-col">
+        <div id="order" className="bg-white min-h-[440px] dark:bg-[#181A20]  rounded-[8px] flex flex-col">
             {/* Main Tabs */}
             <div className="px-[16px] border-b border-gray-200 dark:border-[#373c43]">
                 <div className="flex gap-[24px]">
@@ -323,11 +541,72 @@ export default function Order() {
                                 min={0}
                                 value={buyAmount}
                                 onChange={(e) => setBuyAmount(e.target.value)}
-                                className="w-full px-[12px] py-[8px] pr-[50px] dark:border-[#373c43] dark:text-[#eaecef] text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none focus:border-gray-400 text-right"
+                                placeholder={orderTab === 'market' && buyInputAsset === 'quote' ? 'Tối thiểu 5' : ''}
+                                className={`w-full px-[12px] py-[8px] ${orderTab === 'market' ? 'pr-[90px]' : 'pr-[50px]'} dark:border-[#373c43] dark:text-[#eaecef] text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none focus:border-gray-400 text-right`}
                             />
-                            <span className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
-                                {assetToken}
-                            </span>
+                            {/* Asset Selector Dropdown - Only show for market orders */}
+                            {orderTab === 'market' ? (
+                                <div ref={buyDropdownRef} className="absolute right-[4px] top-1/2 -translate-y-1/2">
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setBuyAssetDropdownOpen(!buyAssetDropdownOpen);
+                                            setSellAssetDropdownOpen(false);
+                                        }}
+                                        className="flex items-center gap-1 px-2 py-1 text-[14px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                                    >
+                                        <span>{buyInputAsset === 'base' ? assetToken : baseToken}</span>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </button>
+                                    {buyAssetDropdownOpen && (
+                                        <div className="absolute right-0 mt-1 w-[100px] bg-white dark:bg-[#1E2026] border border-gray-200 dark:border-gray-700 rounded shadow-lg z-10">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setBuyInputAsset('base');
+                                                    setBuyAssetDropdownOpen(false);
+                                                    setBuyAmount('');
+                                                    setBuySlider(0);
+                                                }}
+                                                className={`w-full text-left px-3 py-2 text-[14px] hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between ${buyInputAsset === 'base' ? 'text-[#2EBD85] font-medium' : 'text-gray-700 dark:text-gray-300'}`}
+                                            >
+                                                <span>{assetToken}</span>
+                                                {buyInputAsset === 'base' && <span>✓</span>}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setBuyInputAsset('quote');
+                                                    setBuyAssetDropdownOpen(false);
+                                                    setBuyAmount('');
+                                                    setBuySlider(0);
+                                                }}
+                                                className={`w-full text-left px-3 py-2 text-[14px] hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between ${buyInputAsset === 'quote' ? 'text-[#2EBD85] font-medium' : 'text-gray-700 dark:text-gray-300'}`}
+                                            >
+                                                <span>{baseToken}</span>
+                                                {buyInputAsset === 'quote' && <span>✓</span>}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <span className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
+                                    {assetToken}
+                                </span>
+                            )}
+                        </div>
+                        <div className={`h-[20px]  mt-[4px] ${orderTab === 'market' ? 'block' : 'hidden'}`}>
+                            {/* Helper text for market orders */}
+                            {orderTab === 'market' && buyInputAsset === 'base' && (
+                                <p className="text-[12px] text-gray-500">
+                                    Toàn bộ {baseToken} sẽ bị khóa để đảm bảo đủ số dư
+                                </p>
+                            )}
                         </div>
                     </div>
 
@@ -394,11 +673,13 @@ export default function Order() {
                             <span className="text-gray-900 dark:text-[#eaecef]">{getBalance(baseToken)} {baseToken}</span>
                         </div>
 
-                        {/* Max Buy */}
+                        {/* Max Buy - Always show max BTC */}
                         <div>
                             <div className="flex justify-between text-[12px]">
                                 <span className="text-gray-500">Mua tối đa</span>
-                                <span className="text-gray-900 dark:text-[#eaecef]">{getMaxBuyAmount()} {assetToken}</span>
+                                <span className="text-gray-900 dark:text-[#eaecef]">
+                                    {getMaxBuyAmount()} {assetToken}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -450,11 +731,72 @@ export default function Order() {
                                 min={0}
                                 value={sellAmount}
                                 onChange={(e) => setSellAmount(e.target.value)}
-                                className="w-full px-[12px] py-[8px] dark:border-[#373c43] dark:text-[#eaecef]  pr-[50px] text-[14px] border border-gray-300 rounded-[8px] focus:outline-none focus:border-gray-400 text-right"
+                                placeholder={orderTab === 'market' && sellInputAsset === 'quote' ? 'Tối thiểu 5' : ''}
+                                className={`w-full px-[12px] py-[8px] dark:border-[#373c43] dark:text-[#eaecef] ${orderTab === 'market' ? 'pr-[90px]' : 'pr-[50px]'} text-[14px] border border-gray-300 rounded-[8px] focus:outline-none focus:border-gray-400 text-right`}
                             />
-                            <span className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
-                                {assetToken}
-                            </span>
+                            {/* Asset Selector Dropdown - Only show for market orders */}
+                            {orderTab === 'market' ? (
+                                <div ref={sellDropdownRef} className="absolute right-[4px] top-1/2 -translate-y-1/2">
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSellAssetDropdownOpen(!sellAssetDropdownOpen);
+                                            setBuyAssetDropdownOpen(false);
+                                        }}
+                                        className="flex items-center gap-1 px-2 py-1 text-[14px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                                    >
+                                        <span>{sellInputAsset === 'base' ? assetToken : baseToken}</span>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </button>
+                                    {sellAssetDropdownOpen && (
+                                        <div className="absolute right-0 mt-1 w-[100px] bg-white dark:bg-[#1E2026] border border-gray-200 dark:border-gray-700 rounded shadow-lg z-10">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSellInputAsset('base');
+                                                    setSellAssetDropdownOpen(false);
+                                                    setSellAmount('');
+                                                    setSellSlider(0);
+                                                }}
+                                                className={`w-full text-left px-3 py-2 text-[14px] hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between ${sellInputAsset === 'base' ? 'text-[#F6465D] font-medium' : 'text-gray-700 dark:text-gray-300'}`}
+                                            >
+                                                <span>{assetToken}</span>
+                                                {sellInputAsset === 'base' && <span>✓</span>}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSellInputAsset('quote');
+                                                    setSellAssetDropdownOpen(false);
+                                                    setSellAmount('');
+                                                    setSellSlider(0);
+                                                }}
+                                                className={`w-full text-left px-3 py-2 text-[14px] hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center justify-between ${sellInputAsset === 'quote' ? 'text-[#F6465D] font-medium' : 'text-gray-700 dark:text-gray-300'}`}
+                                            >
+                                                <span>{baseToken}</span>
+                                                {sellInputAsset === 'quote' && <span>✓</span>}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <span className="absolute right-[12px] top-1/2 -translate-y-1/2 text-[14px] text-gray-500">
+                                    {assetToken}
+                                </span>
+                            )}
+                        </div>
+                        <div className={`h-[20px]  mt-[4px] ${orderTab === 'market' ? 'block' : 'hidden'}`}>
+                            {/* Helper text for market orders */}
+                            {orderTab === 'market' && sellInputAsset === 'quote' && (
+                                <p className="text-[12px] text-gray-500">
+                                    Toàn bộ {assetToken} sẽ bị khóa để đảm bảo đủ số dư
+                                </p>
+                            )}
                         </div>
                     </div>
 
@@ -521,11 +863,13 @@ export default function Order() {
                             <span className="text-gray-900 dark:text-[#eaecef]">{getBalance(assetToken)} {assetToken}</span>
                         </div>
 
-                        {/* Max Sell Total */}
+                        {/* Max Sell - Show USDT for limit orders, depends on input for market orders */}
                         <div>
                             <div className="flex justify-between text-[12px]">
                                 <span className="text-gray-500">Bán tối đa</span>
-                                <span className="text-gray-900 dark:text-[#eaecef]">{getMaxSellTotal()} {baseToken}</span>
+                                <span className="text-gray-900 dark:text-[#eaecef]">
+                                    {getMaxSellTotal()} {orderTab === 'limit' ? baseToken : (sellInputAsset === 'base' ? assetToken : baseToken)}
+                                </span>
                             </div>
                         </div>
                     </div>

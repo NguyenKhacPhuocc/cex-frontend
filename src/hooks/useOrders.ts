@@ -10,7 +10,9 @@ export interface PlaceOrderRequest {
   side: "buy" | "sell";
   type: "limit" | "market";
   price?: number; // Optional for market orders
-  amount: number;
+  amount: number; // Always in base asset (BTC)
+  inputAssetType?: "base" | "quote"; // 'base' = BTC, 'quote' = USDT
+  originalQuoteAmount?: number; // Original USDT amount when inputAssetType is 'quote' (for market orders)
 }
 
 export interface PlaceOrderResponse {
@@ -127,9 +129,23 @@ const fetchOpenOrders = async (): Promise<Order[]> => {
   return result;
 };
 
+// Paginated response interface
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 // Fetch order history (status != OPEN)
-const fetchOrderHistory = async (): Promise<Order[]> => {
-  const result = await apiClient.get<Order[]>("/api/orders/history");
+const fetchOrderHistory = async (
+  page: number = 1,
+  limit: number = 20
+): Promise<PaginatedResponse<Order>> => {
+  const result = await apiClient.get<PaginatedResponse<Order>>(
+    `/api/orders/history?page=${page}&limit=${limit}`
+  );
   return result;
 };
 
@@ -269,7 +285,11 @@ export const useOpenOrders = (enabled: boolean = true) => {
 /**
  * Hook to get order history (filled/cancelled orders) with real-time updates via WebSocket
  */
-export const useOrderHistory = (enabled: boolean = true) => {
+export const useOrderHistory = (
+  enabled: boolean = true,
+  page: number = 1,
+  limit: number = 20
+) => {
   const { socket, isConnected } = useWebSocketContext();
   const queryClient = useQueryClient();
 
@@ -278,8 +298,8 @@ export const useOrderHistory = (enabled: boolean = true) => {
 
   // Fetch order history
   const query = useQuery({
-    queryKey: ["orders", "history"],
-    queryFn: fetchOrderHistory,
+    queryKey: ["orders", "history", page, limit],
+    queryFn: () => fetchOrderHistory(page, limit),
     enabled,
     staleTime: 30000, // 30 seconds (history doesn't change as often)
   });
@@ -298,11 +318,13 @@ export const useOrderHistory = (enabled: boolean = true) => {
         data
       );
       // When order status changes (filled/cancelled), it moves to history
-      // Invalidate to refresh history list
-      queryClient.invalidateQueries({
-        queryKey: ["orders", "history"],
-        refetchType: "active",
-      });
+      // Only refetch if we're on the first page (most recent orders)
+      if (page === 1) {
+        queryClient.invalidateQueries({
+          queryKey: ["orders", "history"],
+          refetchType: "active",
+        });
+      }
     };
 
     const handleTradeExecuted = () => {
@@ -315,10 +337,13 @@ export const useOrderHistory = (enabled: boolean = true) => {
       // Only invalidate after 500ms of no new trades (batches multiple trades)
       tradeExecutedTimeoutRef.current = setTimeout(() => {
         // When trade executed, order might be filled/partially filled → move to history
-        queryClient.invalidateQueries({
-          queryKey: ["orders", "history"],
-          refetchType: "active",
-        });
+        // Only refetch if we're on the first page (most recent orders)
+        if (page === 1) {
+          queryClient.invalidateQueries({
+            queryKey: ["orders", "history"],
+            refetchType: "active",
+          });
+        }
         tradeExecutedTimeoutRef.current = null;
       }, 500);
     };
@@ -335,7 +360,7 @@ export const useOrderHistory = (enabled: boolean = true) => {
         tradeExecutedTimeoutRef.current = null;
       }
     };
-  }, [socket, isConnected, enabled, queryClient]);
+  }, [socket, isConnected, enabled, queryClient, page]);
 
   return query;
 };

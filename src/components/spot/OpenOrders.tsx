@@ -26,13 +26,31 @@ export default function OpenOrders() {
     const [sortByTime] = useState("Sắp xếp theo thời gian đặt lệnh"); // TODO: Implement dropdown later
     const tabsRef = useRef<{ [key: string]: HTMLButtonElement | null }>({});
     const fee = 0; // phí giao dịch
+
+    // Pagination states
+    const [orderHistoryPage, setOrderHistoryPage] = useState(1);
+    const [tradeHistoryPage, setTradeHistoryPage] = useState(1);
+    const itemsPerPage = 20;
+
     // Fetch data based on active tab
     const { orders: openOrders, isLoading: isLoadingOpenOrders } = useOpenOrders(isLogin && activeTab === "orders");
-    const { data: orderHistory, isLoading: isLoadingHistory } = useOrderHistory(isLogin && activeTab === "history");
-    const { data: tradeHistory, isLoading: isLoadingTradeHistory } = useAllUserTrades(isLogin && activeTab === "trade-history");
+    const { data: orderHistoryData, isLoading: isLoadingHistory } = useOrderHistory(
+        isLogin && activeTab === "history",
+        orderHistoryPage,
+        itemsPerPage
+    );
+    const { data: tradeHistoryData, isLoading: isLoadingTradeHistory } = useAllUserTrades(
+        isLogin && activeTab === "trade-history",
+        tradeHistoryPage,
+        itemsPerPage
+    );
 
     // Cancel order mutation
     const cancelOrderMutation = useCancelOrder();
+
+    // Extract data and pagination info with useMemo
+    const orderHistory = useMemo(() => orderHistoryData?.data || [], [orderHistoryData]);
+    const tradeHistory = useMemo(() => tradeHistoryData?.data || [], [tradeHistoryData]);
 
     // Filter by symbol if hideOtherPairs is true
     const filteredOpenOrders = useMemo(() => {
@@ -40,14 +58,23 @@ export default function OpenOrders() {
         return openOrders.filter(order => order.market.symbol === symbol);
     }, [openOrders, hideOtherPairs, symbol]);
     const filteredOrderHistory = useMemo(() => {
-        if (!hideOtherPairs || !symbol) return orderHistory || [];
-        return (orderHistory || []).filter(order => order.market.symbol === symbol);
+        if (!hideOtherPairs || !symbol) return orderHistory;
+        return orderHistory.filter(order => order.market.symbol === symbol);
     }, [orderHistory, hideOtherPairs, symbol]);
 
     const filteredTradeHistory = useMemo(() => {
-        if (!hideOtherPairs || !symbol) return tradeHistory || [];
-        return (tradeHistory || []).filter(trade => trade.market === symbol);
+        if (!hideOtherPairs || !symbol) return tradeHistory;
+        return tradeHistory.filter(trade => trade.market === symbol);
     }, [tradeHistory, hideOtherPairs, symbol]);
+
+    // Reset pagination when switching tabs
+    useEffect(() => {
+        if (activeTab === "history") {
+            setOrderHistoryPage(1);
+        } else if (activeTab === "trade-history") {
+            setTradeHistoryPage(1);
+        }
+    }, [activeTab]);
 
     const tabs = [
         { id: "orders", label: "Giao dịch đang chờ khớp lệnh", count: filteredOpenOrders.length },
@@ -312,11 +339,11 @@ export default function OpenOrders() {
                         <Link href="/login" className="text-[#D89F00] hover:underline">
                             Đăng nhập
                         </Link>
-                        <span className="text-black"> hoặc </span>
+                        <span className="text-black dark:text-[#eaecef]"> hoặc </span>
                         <Link href="/register" className="text-[#D89F00] hover:underline">
                             Đăng ký ngay
                         </Link>
-                        <span className="text-black"> để giao dịch</span>
+                        <span className="text-black dark:text-[#eaecef]"> để giao dịch</span>
                     </div>
                 </div>
             ) : (
@@ -344,7 +371,7 @@ export default function OpenOrders() {
                                                 {header.hasDropdown ? (
                                                     <button
                                                         onClick={() => handleSort(header.label)}
-                                                        className={`flex items-center gap-[4px] ${justifyClass} hover:text-black  ${sortColumn === header.label ? "text-black" : ""
+                                                        className={`flex items-center gap-[4px] ${justifyClass} hover:text-black dark:hover:text-[#eaecef]  ${sortColumn === header.label ? "text-black dark:text-[#eaecef]" : ""
                                                             }`}
                                                     >
                                                         {header.label}
@@ -443,7 +470,7 @@ export default function OpenOrders() {
                                                 const avgPrice = Number(order.filled) > 0 ? Number(order.price || 0) : 0;
                                                 return (
                                                     <tr key={order.id} className="border-t border-[#F5F5F5] dark:border-[#373c43] dark:text-[#eaecef] hover:bg-gray-50 dark:hover:bg-gray-800">
-                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatDate(order.createdAt)}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatTime(order.createdAt)}</td>
                                                         <td className="px-[12px] py-[12px] text-[12px]">{order.market.symbol.replace('_', '/')}</td>
                                                         <td className="px-[12px] py-[12px] text-[12px]">{order.type.toUpperCase()}</td>
                                                         <td className={`px-[12px] py-[12px] text-[12px] ${getSideColor(order.side)}`}>{order.side.toUpperCase()}</td>
@@ -480,26 +507,91 @@ export default function OpenOrders() {
                                                 </td>
                                             </tr>
                                         ) : (
-                                            filteredTradeHistory.map((trade, index) => (
-                                                <tr key={trade.id} className="border-t border-[#F5F5F5] hover:bg-gray-50 dark:border-[#373c43] dark:text-[#eaecef] dark:hover:bg-gray-800">
-                                                    <td className="px-[12px] py-[12px] text-[12px]">{filteredTradeHistory.length - index}</td>
-                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatTime(trade.timestamp)}</td>
-                                                    <td className="px-[12px] py-[12px] text-[12px]">{trade.market.replace('_', '/')}</td>
-                                                    <td className={`px-[12px] py-[12px] text-[12px] ${getSideColor(trade.side)}`}>{trade.side.toUpperCase()}</td>
-                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(trade.price), 2)}</td>
-                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(trade.amount), 5)}</td>
-                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(trade.fee), 6)}</td>
-                                                    <td className="px-[12px] py-[12px] text-[12px]">{trade.counterparty.type === 'BUYER' ? 'Maker' : 'Taker'}</td>
-                                                    <td className="px-[12px] py-[12px] text-[12px]">--</td>
-                                                    <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(trade.total), 2)}</td>
-                                                    <td className="px-[12px] py-[12px] text-[12px] text-right">{formatNumber(Number(trade.total), 2)}</td>
-                                                </tr>
-                                            ))
+                                            filteredTradeHistory.map((trade, index) => {
+                                                // Calculate continuous index across pages
+                                                // For descending order (newest first), we want: total - (page-1)*limit - index
+                                                // For ascending order (oldest first), we want: (page-1)*limit + index + 1
+                                                // Since trades are sorted DESC (newest first), we use descending index
+                                                const continuousIndex = tradeHistoryData
+                                                    ? tradeHistoryData.total - ((tradeHistoryPage - 1) * itemsPerPage + index)
+                                                    : filteredTradeHistory.length - index;
+                                                return (
+                                                    <tr key={trade.id} className="border-t border-[#F5F5F5] hover:bg-gray-50 dark:border-[#373c43] dark:text-[#eaecef] dark:hover:bg-gray-800">
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{continuousIndex}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatTime(trade.timestamp)}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{trade.market.replace('_', '/')}</td>
+                                                        <td className={`px-[12px] py-[12px] text-[12px] ${getSideColor(trade.side)}`}>{trade.side.toUpperCase()}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(trade.price), 2)}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(trade.amount), 5)}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(trade.fee), 6)}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{trade.counterparty.type === 'BUYER' ? 'Maker' : 'Taker'}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">--</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px]">{formatNumber(Number(trade.total), 2)}</td>
+                                                        <td className="px-[12px] py-[12px] text-[12px] text-right">{formatNumber(Number(trade.total), 2)}</td>
+                                                    </tr>
+                                                );
+                                            })
                                         )}
                                     </>
                                 )}
                             </tbody>
                         </table>
+
+                        {/* Pagination for Order History */}
+                        {activeTab === "history" && orderHistoryData && orderHistoryData.totalPages > 1 && (
+                            <div className="flex items-center justify-between px-4 py-3 border-t border-[#F5F5F5] dark:border-[#373c43]">
+                                <div className="text-sm text-[#9c9c9c] dark:text-[#eaecef]">
+                                    Hiển thị {(orderHistoryPage - 1) * itemsPerPage + 1} - {Math.min(orderHistoryPage * itemsPerPage, orderHistoryData.total)} / {orderHistoryData.total}
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setOrderHistoryPage(p => Math.max(1, p - 1))}
+                                        disabled={orderHistoryPage === 1}
+                                        className="px-3 py-1 border border-[#F5F5F5] dark:border-[#373c43] rounded text-sm text-[#9c9c9c] dark:text-[#eaecef] hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Trước
+                                    </button>
+                                    <span className="px-3 py-1 text-sm text-[#9c9c9c] dark:text-[#eaecef]">
+                                        {orderHistoryPage} / {orderHistoryData.totalPages}
+                                    </span>
+                                    <button
+                                        onClick={() => setOrderHistoryPage(p => Math.min(orderHistoryData.totalPages, p + 1))}
+                                        disabled={orderHistoryPage === orderHistoryData.totalPages}
+                                        className="px-3 py-1 border border-[#F5F5F5] dark:border-[#373c43] rounded text-sm text-[#9c9c9c] dark:text-[#eaecef] hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Sau
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Pagination for Trade History */}
+                        {activeTab === "trade-history" && tradeHistoryData && tradeHistoryData.totalPages > 1 && (
+                            <div className="flex items-center justify-between px-4 py-3 border-t border-[#F5F5F5] dark:border-[#373c43]">
+                                <div className="text-sm text-[#9c9c9c] dark:text-[#eaecef]">
+                                    Hiển thị {(tradeHistoryPage - 1) * itemsPerPage + 1} - {Math.min(tradeHistoryPage * itemsPerPage, tradeHistoryData.total)} / {tradeHistoryData.total}
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setTradeHistoryPage(p => Math.max(1, p - 1))}
+                                        disabled={tradeHistoryPage === 1}
+                                        className="px-3 py-1 border border-[#F5F5F5] dark:border-[#373c43] rounded text-sm text-[#9c9c9c] dark:text-[#eaecef] hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Trước
+                                    </button>
+                                    <span className="px-3 py-1 text-sm text-[#9c9c9c] dark:text-[#eaecef]">
+                                        {tradeHistoryPage} / {tradeHistoryData.totalPages}
+                                    </span>
+                                    <button
+                                        onClick={() => setTradeHistoryPage(p => Math.min(tradeHistoryData.totalPages, p + 1))}
+                                        disabled={tradeHistoryPage === tradeHistoryData.totalPages}
+                                        className="px-3 py-1 border border-[#F5F5F5] dark:border-[#373c43] rounded text-sm text-[#9c9c9c] dark:text-[#eaecef] hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Sau
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

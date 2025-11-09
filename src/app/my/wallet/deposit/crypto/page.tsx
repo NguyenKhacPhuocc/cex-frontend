@@ -1,4 +1,4 @@
-export default function DepositPage() {
+export default function CryptoDepositPage() {
 
   return (
     <>

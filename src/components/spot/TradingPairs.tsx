@@ -163,9 +163,9 @@ export default function TradingPairs() {
             return <FaSort className="text-gray-400" />;
         }
         return sortOrder === "asc" ? (
-            <FaSortUp className="text-black" />
+            <FaSortUp className="text-black dark:text-[#eaecef]" />
         ) : (
-            <FaSortDown className="text-black" />
+            <FaSortDown className="text-black dark:text-[#eaecef]" />
         );
     };
 
@@ -296,7 +296,7 @@ export default function TradingPairs() {
                     {/* Pair Column */}
                     <button
                         onClick={() => handleSort("pair")}
-                        className="flex items-center gap-[4px] hover:text-gray-700 transition-colors min-w-0"
+                        className="flex items-center gap-[4px] hover:text-gray-700 dark:hover:text-[#eaecef] transition-colors min-w-0"
                     >
                         <span className="truncate">Cặp</span>
                         <span className="shrink-0 text-[10px] ">{getSortIcon("pair")}</span>
@@ -305,7 +305,7 @@ export default function TradingPairs() {
                     {/* Price Column */}
                     <button
                         onClick={() => handleSort("price")}
-                        className="flex items-center justify-end gap-[4px] hover:text-gray-700 transition-colors min-w-0"
+                        className="flex items-center justify-end gap-[4px] hover:text-gray-700 dark:hover:text-[#eaecef] transition-colors min-w-0"
                     >
                         <span className="truncate">Giá gần nhất</span>
                         <span className="shrink-0 text-[10px]">{getSortIcon("price")}</span>
@@ -314,7 +314,7 @@ export default function TradingPairs() {
                     {/* Change Column */}
                     <button
                         onClick={() => handleSort("change24h")}
-                        className="flex items-center justify-end gap-[4px] hover:text-gray-700 transition-colors min-w-0"
+                        className="flex items-center justify-end gap-[4px] hover:text-gray-700 dark:hover:text-[#eaecef] transition-colors min-w-0"
                     >
                         <span className="truncate">Biến động trong 24h</span>
                         <span className="shrink-0 text-[10px]">{getSortIcon("change24h")}</span>

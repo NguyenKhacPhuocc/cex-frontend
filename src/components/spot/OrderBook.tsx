@@ -55,8 +55,10 @@ export default function OrderBook() {
     const priceChange24h = ticker?.change24h || 0;
 
     // Real-time data từ WebSocket (đã sorted từ backend)
-    // Giới hạn số lượng hiển thị để tránh vỡ giao diện (top 20 orders mỗi bên)
-    const MAX_ORDERS_DISPLAY = 18;
+    // Giới hạn số lượng hiển thị để tránh vỡ giao diện
+    // Nếu viewMode = "all": 20 orders mỗi bên
+    // Nếu viewMode = "asks" | "bids": 42 orders để tận dụng không gian
+    const MAX_ORDERS_DISPLAY = viewMode === "all" ? 19 : 38;
     const sortedAsks = (orderBook?.asks || []).slice(0, MAX_ORDERS_DISPLAY);
     const sortedBids = (orderBook?.bids || []).slice(0, MAX_ORDERS_DISPLAY);
 

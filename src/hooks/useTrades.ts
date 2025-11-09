@@ -118,24 +118,44 @@ export const useUserTrades = (symbol: string, enabled: boolean = true) => {
   });
 };
 
+// Paginated response interface
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 // Fetch all user trades (no symbol filter) - for trade history tab
-const fetchAllUserTrades = async (): Promise<UserTrade[]> => {
-  console.log(`🔄 [fetchAllUserTrades] Fetching all user trades...`);
-  const result = await apiClient.get<UserTrade[]>(`/api/trades/history`);
+const fetchAllUserTrades = async (
+  page: number = 1,
+  limit: number = 20
+): Promise<PaginatedResponse<UserTrade>> => {
+  console.log(
+    `🔄 [fetchAllUserTrades] Fetching all user trades (page ${page}, limit ${limit})...`
+  );
+  const result = await apiClient.get<PaginatedResponse<UserTrade>>(
+    `/api/trades/history?page=${page}&limit=${limit}`
+  );
   return result;
 };
 
 /**
  * Hook to get all user's trades (trade history tab) with real-time updates via WebSocket
  */
-export const useAllUserTrades = (enabled: boolean = true) => {
+export const useAllUserTrades = (
+  enabled: boolean = true,
+  page: number = 1,
+  limit: number = 20
+) => {
   const { socket, isConnected } = useWebSocketContext();
   const queryClient = useQueryClient();
 
   // Fetch all user trades
   const query = useQuery({
-    queryKey: ["trades", "user", "all"],
-    queryFn: fetchAllUserTrades,
+    queryKey: ["trades", "user", "all", page, limit],
+    queryFn: () => fetchAllUserTrades(page, limit),
     enabled,
     staleTime: 30000, // 30 seconds
   });
@@ -153,10 +173,14 @@ export const useAllUserTrades = (enabled: boolean = true) => {
       amount: number;
       timestamp: number;
     }) => {
-      queryClient.invalidateQueries({
-        queryKey: ["trades", "user", "all"],
-        refetchType: "active",
-      });
+      // Only refetch if we're on the first page (most recent trades)
+      // Otherwise, new trades will appear when user goes back to page 1
+      if (page === 1) {
+        queryClient.invalidateQueries({
+          queryKey: ["trades", "user", "all"],
+          refetchType: "active",
+        });
+      }
     };
 
     socket.on("trade:executed", handleTradeExecuted);
@@ -164,7 +188,7 @@ export const useAllUserTrades = (enabled: boolean = true) => {
     return () => {
       socket.off("trade:executed", handleTradeExecuted);
     };
-  }, [socket, isConnected, enabled, queryClient]);
+  }, [socket, isConnected, enabled, queryClient, page]);
 
   return query;
 };

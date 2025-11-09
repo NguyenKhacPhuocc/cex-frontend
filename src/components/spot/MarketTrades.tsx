@@ -57,7 +57,7 @@ export default function MarketTrades() {
                         onClick={() => setActiveTab("market")}
                         className={`text-[14px] pb-[12px] transition-colors ${activeTab === "market"
                             ? "text-black font-medium border-b-2 border-[#FDDD5D] dark:text-[#eaecef]"
-                            : "text-gray-500 hover:text-gray-700"
+                            : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                             }`}
                     >
                         Thị trường giao dịch
@@ -66,7 +66,7 @@ export default function MarketTrades() {
                         onClick={() => setActiveTab("myTrades")}
                         className={`text-[14px] pb-[12px] transition-colors ${activeTab === "myTrades"
                             ? "text-black font-medium border-b-2 border-[#FDDD5D] dark:text-[#eaecef]"
-                            : "text-gray-500 hover:text-gray-700"
+                            : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                             }`}
                     >
                         Giao dịch của tôi
@@ -103,7 +103,7 @@ export default function MarketTrades() {
                                     <div className="text-right text-gray-900 tabular-nums dark:text-[#eaecef]">
                                         {formatAmount(trade.amount)}
                                     </div>
-                                    <div className="text-right text-gray-600 tabular-nums dark:text-[#eaecef]">
+                                    <div className="text-right text-gray-600  tabular-nums dark:text-[#eaecef]">
                                         {formatTime(trade.timestamp)}
                                     </div>
                                 </div>
@@ -126,16 +126,16 @@ export default function MarketTrades() {
                     userTrades.map((trade) => (
                         <div
                             key={trade.id}
-                            className="px-[16px] py-[4px] h-[20px] hover:bg-gray-50 transition-colors"
+                            className="px-[16px] py-[4px] h-[20px]transition-colors  hover:bg-gray-50 dark:hover:bg-gray-800"
                         >
                             <div className="grid grid-cols-3 gap-[8px] text-[12px]">
                                 <div className={`tabular-nums ${trade.side === "BUY" ? "text-[#2ebd85]" : "text-[#f6465d]"}`}>
                                     {formatNumber(trade.price, 2)}
                                 </div>
-                                <div className="text-right text-gray-900 tabular-nums">
+                                <div className="text-right text-gray-900 tabular-nums dark:text-[#eaecef]">
                                     {formatAmount(trade.amount)}
                                 </div>
-                                <div className="text-right text-gray-600 tabular-nums">
+                                <div className="text-right text-gray-600 tabular-nums dark:text-[#eaecef]">
                                     {formatTime(trade.timestamp)}
                                 </div>
                             </div>
