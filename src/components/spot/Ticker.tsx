@@ -99,8 +99,36 @@ export default function Ticker() {
     const volume24hBTC = currentPrice > 0 ? volume24hUSDT / currentPrice : 0;
     const pairDisplay = ticker?.pair || `${assetToken}/${baseToken}`;
 
-    // Color based on change
-    const priceColor = change24h >= 0 ? 'text-[#2EBD85]' : 'text-[#F6465D]';
+    // Track last price for color comparison using ref to avoid re-render issues
+    const prevPriceRef = useRef<number>(0);
+    const [priceDirection, setPriceDirection] = useState<'up' | 'down' | null>(null);
+
+    // Update price direction when currentPrice changes
+    useEffect(() => {
+        if (currentPrice > 0) {
+            if (prevPriceRef.current > 0) {
+                if (currentPrice > prevPriceRef.current) {
+                    setPriceDirection('up');
+                } else if (currentPrice < prevPriceRef.current) {
+                    setPriceDirection('down');
+                }
+                // If currentPrice === prevPriceRef.current, keep the previous direction (don't change)
+            }
+            prevPriceRef.current = currentPrice;
+        }
+    }, [currentPrice]);
+
+    // Color based on currentPrice vs lastPrice comparison
+    const getPriceColor = () => {
+        if (priceDirection === 'up') {
+            return 'text-[#2EBD85]';
+        } else if (priceDirection === 'down') {
+            return 'text-[#F6465D]';
+        }
+        return 'text-black dark:text-[#eaecef]';
+    };
+
+    const priceColor = getPriceColor();
     const changeColor = change24h >= 0 ? 'text-[#2EBD85]' : 'text-[#F6465D]';
 
     const checkScroll = () => {

@@ -201,8 +201,17 @@ export default function Header() {
 
 
                             {/* Wallet Icon */}
-                            <div className="text-[22px] py-[20px] px-[8px] hover:text-[#F0B90B] hover:cursor-pointer">
+                            <div className="group relative  text-[22px] py-[20px] px-[8px] hover:text-[#F0B90B] hover:cursor-pointer">
                                 <IoWalletOutline />
+                                {/* Dropdown on hover login*/}
+                                <div className="absolute top-full right-0 hidden group-hover:block bg-white dark:bg-[#202630] dark:backdrop-blur-md shadow-lg rounded-lg w-64 z-999 py-2 border border-gray-200 dark:border-gray-800">
+                                    <Link
+                                        href={'/my/wallet/overview'}
+                                        className="w-full px-4 py-3 text-left flex items-center gap-2  hover:bg-gray-100 dark:hover:bg-[#262e3c] hover:cursor-pointer"
+                                    >
+                                        <span className="text-[14px] font-medium text-gray-900 dark:text-white/90">Tổng quan ví</span>
+                                    </Link>
+                                </div>
                             </div>
 
                             {/* Chat Icon */}

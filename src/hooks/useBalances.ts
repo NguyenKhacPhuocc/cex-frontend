@@ -37,7 +37,7 @@ export const useBalances = (type: WalletType, enabled: boolean = true) => {
   });
 };
 
-// Hook để fetch tất cả balances cùng lúc
+// Hook để fetch tất cả balances cùng lúc (separated by type)
 export const useAllBalances = (enabled: boolean = true) => {
   const spotBalances = useBalances("spot", enabled);
   const futuresBalances = useBalances("futures", enabled);
@@ -52,4 +52,27 @@ export const useAllBalances = (enabled: boolean = true) => {
       futuresBalances.isLoading ||
       fundingBalances.isLoading,
   };
+};
+
+// Hook để fetch tất cả balances đã merge (từ API /api/balances)
+export const useMergedBalances = (enabled: boolean = true) => {
+  return useQuery({
+    queryKey: ["balances", "merged"],
+    queryFn: async (): Promise<Balance[]> => {
+      console.log(`Fetching merged balances...`);
+      try {
+        const data = await apiClient.get<Balance[]>(`/api/balances`);
+        console.log(`Merged balances fetched:`, data);
+        return data;
+      } catch (error) {
+        console.error(`Error fetching merged balances:`, error);
+        throw error;
+      }
+    },
+    enabled,
+    staleTime: 0,
+    gcTime: 5 * 60 * 1000,
+    retry: 1,
+    placeholderData: (previousData) => previousData,
+  });
 };

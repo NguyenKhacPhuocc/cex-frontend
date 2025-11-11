@@ -278,12 +278,6 @@ export default function Order() {
             const balance = getRawBalance(baseToken);
             const usdtAmount = parseFloat(buyAmount);
 
-            // Validate minimum order value for market orders with USDT input
-            if (orderTab === 'market' && usdtAmount < 5) {
-                toast.error('Số lượng tối thiểu là 5 USDT');
-                return;
-            }
-
             if (balance < usdtAmount) {
                 toast.error(`Số dư ${baseToken} không đủ`);
                 return;
@@ -392,14 +386,6 @@ export default function Order() {
             // Input is USDT - for market orders, will lock all BTC
             if (orderTab === 'market') {
                 // Market order: will lock all BTC, just check if we have any
-                const usdtAmount = parseFloat(sellAmount);
-
-                // Validate minimum order value for market orders with USDT input
-                if (usdtAmount < 5) {
-                    toast.error('Số lượng tối thiểu là 5 USDT');
-                    return;
-                }
-
                 const balance = getRawBalance(assetToken);
                 if (balance <= 0) {
                     toast.error(`Số dư ${assetToken} không đủ`);
@@ -541,7 +527,7 @@ export default function Order() {
                                 min={0}
                                 value={buyAmount}
                                 onChange={(e) => setBuyAmount(e.target.value)}
-                                placeholder={orderTab === 'market' && buyInputAsset === 'quote' ? 'Tối thiểu 5' : ''}
+                                placeholder=""
                                 className={`w-full px-[12px] py-[8px] ${orderTab === 'market' ? 'pr-[90px]' : 'pr-[50px]'} dark:border-[#373c43] dark:text-[#eaecef] text-[14px] border border-gray-300 rounded-[8px]  focus:outline-none focus:border-gray-400 text-right`}
                             />
                             {/* Asset Selector Dropdown - Only show for market orders */}
@@ -731,7 +717,7 @@ export default function Order() {
                                 min={0}
                                 value={sellAmount}
                                 onChange={(e) => setSellAmount(e.target.value)}
-                                placeholder={orderTab === 'market' && sellInputAsset === 'quote' ? 'Tối thiểu 5' : ''}
+                                placeholder=""
                                 className={`w-full px-[12px] py-[8px] dark:border-[#373c43] dark:text-[#eaecef] ${orderTab === 'market' ? 'pr-[90px]' : 'pr-[50px]'} text-[14px] border border-gray-300 rounded-[8px] focus:outline-none focus:border-gray-400 text-right`}
                             />
                             {/* Asset Selector Dropdown - Only show for market orders */}

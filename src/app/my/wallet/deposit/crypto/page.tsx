@@ -1,8 +1,8 @@
 export default function CryptoDepositPage() {
 
-  return (
-    <>
-      nạp tiền 
-    </>
-  );
+    return (
+        <>
+            nạp tiền
+        </>
+    );
 }

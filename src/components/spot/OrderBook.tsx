@@ -52,22 +52,55 @@ export default function OrderBook() {
 
     // Current price = last trade price, fallback to 0 if not loaded
     const currentPrice = ticker?.price || 0;
-    const priceChange24h = ticker?.change24h || 0;
+
+    // Track last price for color comparison using ref to avoid re-render issues
+    const prevPriceRef = useRef<number>(0);
+    const [priceDirection, setPriceDirection] = useState<'up' | 'down' | null>(null);
+
+    // Update price direction when currentPrice changes
+    useEffect(() => {
+        if (currentPrice > 0) {
+            if (prevPriceRef.current > 0) {
+                if (currentPrice > prevPriceRef.current) {
+                    setPriceDirection('up');
+                } else if (currentPrice < prevPriceRef.current) {
+                    setPriceDirection('down');
+                }
+                // If currentPrice === prevPriceRef.current, keep the previous direction (don't change)
+            }
+            prevPriceRef.current = currentPrice;
+        }
+    }, [currentPrice]);
 
     // Real-time data từ WebSocket (đã sorted từ backend)
     // Giới hạn số lượng hiển thị để tránh vỡ giao diện
     // Nếu viewMode = "all": 20 orders mỗi bên
     // Nếu viewMode = "asks" | "bids": 42 orders để tận dụng không gian
     const MAX_ORDERS_DISPLAY = viewMode === "all" ? 19 : 38;
-    const sortedAsks = (orderBook?.asks || []).slice(0, MAX_ORDERS_DISPLAY);
-    const sortedBids = (orderBook?.bids || []).slice(0, MAX_ORDERS_DISPLAY);
+
+    // Memoize sorted arrays để tránh re-compute không cần thiết
+    // và đảm bảo reference stability khi data không thay đổi
+    // Backend returns: asks ASCENDING (lowest first = best ask), bids DESCENDING (highest first = best bid)
+    // Frontend displays: asks từ thấp -> cao (best ask ở đầu), bids từ cao -> thấp (best bid ở đầu)
+    const sortedAsks = useMemo(() => {
+        // Backend đã sort ASCENDING (lowest first), giữ nguyên để best ask ở đầu
+        return (orderBook?.asks || []).slice(0, MAX_ORDERS_DISPLAY);
+    }, [orderBook?.asks, MAX_ORDERS_DISPLAY]);
+
+    const sortedBids = useMemo(() => {
+        // Backend đã sort DESCENDING (highest first), giữ nguyên để best bid ở đầu
+        return (orderBook?.bids || []).slice(0, MAX_ORDERS_DISPLAY);
+    }, [orderBook?.bids, MAX_ORDERS_DISPLAY]);
 
     // Tìm maxAmount trong cả asks và bids để normalize width
-    const allAmounts = [
-        ...sortedAsks.map(ask => ask.amount),
-        ...sortedBids.map(bid => bid.amount),
-    ];
-    const maxAmount = allAmounts.length > 0 ? Math.max(...allAmounts) : 1;
+    // Memoize để tránh re-compute khi không cần thiết
+    const maxAmount = useMemo(() => {
+        const allAmounts = [
+            ...sortedAsks.map(ask => ask.amount),
+            ...sortedBids.map(bid => bid.amount),
+        ];
+        return allAmounts.length > 0 ? Math.max(...allAmounts) : 1;
+    }, [sortedAsks, sortedBids]);
 
     // Tính width percentage cho depth bar
     const calculateWidth = (amount: number): number => {
@@ -277,16 +310,17 @@ export default function OrderBook() {
 
                 {/* Order Book Content */}
                 <div className="flex-1 flex flex-col text-[12px] relative h-full overflow-hidden">
-                    {/* Asks (Sell Orders) - Display từ cao -> thấp */}
+                    {/* Asks (Sell Orders) - Display từ thấp -> cao (best ask = lowest price ở đầu, gần current price) */}
+                    {/* Backend returns asks ASCENDING (lowest first), so asks[0] = best ask */}
                     {(viewMode === "all" || viewMode === "asks") && (
                         <div className={`relative flex flex-col justify-end overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${viewMode === "all" ? "flex-1 max-h-[calc(50%-18px)]" : "flex-1"}`}>
-                            {sortedAsks.slice().map((ask, index) => {
+                            {sortedAsks.slice().reverse().map((ask, index) => {
                                 const isAfterHover = hoveredOrder?.side === "ask" && index >= hoveredOrder.index;
                                 const isHovered = hoveredOrder?.side === "ask" && index === hoveredOrder.index;
 
                                 return (
                                     <div
-                                        key={`ask-${index}`}
+                                        key={`ask-${ask.price}`}
                                         className="flex justify-between px-[12px] py-px relative cursor-pointer"
                                         onMouseEnter={(e) => handleRowHover("ask", index, e.currentTarget)}
                                         onMouseLeave={handleRowLeave}
@@ -324,13 +358,20 @@ export default function OrderBook() {
                             <div className="flex items-center">
                                 {currentPrice > 0 ? (
                                     <>
-                                        <span className={`text-[20px] font-medium ${priceChange24h >= 0 ? 'text-[#2ebd85]' : 'text-[#f6465d]'}`}>
+                                        <span className={`text-[20px] font-medium ${priceDirection === 'up'
+                                            ? 'text-[#2ebd85]'
+                                            : priceDirection === 'down'
+                                                ? 'text-[#f6465d]'
+                                                : 'text-gray-900 dark:text-[#eaecef]'
+                                            }`}>
                                             {formatPrice(currentPrice)}
                                         </span>
-                                        <IoIosArrowRoundUp
-                                            className={`text-[22px] ${priceChange24h >= 0 ? 'text-[#2ebd85]' : 'text-[#f6465d]'}`}
-                                            style={{ transform: priceChange24h < 0 ? 'rotate(180deg)' : 'none' }}
-                                        />
+                                        {priceDirection && (
+                                            <IoIosArrowRoundUp
+                                                className={`text-[22px] ${priceDirection === 'up' ? 'text-[#2ebd85]' : 'text-[#f6465d]'}`}
+                                                style={{ transform: priceDirection === 'down' ? 'rotate(180deg)' : 'none' }}
+                                            />
+                                        )}
                                     </>
                                 ) : (
                                     <span className="text-[20px] font-medium text-gray-400">
@@ -353,7 +394,7 @@ export default function OrderBook() {
 
                                 return (
                                     <div
-                                        key={`bid-${index}`}
+                                        key={`bid-${bid.price}`}
                                         className="flex justify-between px-[12px] py-px relative cursor-pointer"
                                         onMouseEnter={(e) => handleRowHover("bid", index, e.currentTarget)}
                                         onMouseLeave={handleRowLeave}
